@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 config.yaml
+
+# Go binary & logs
+insight/insight_server
+insight/logs/
