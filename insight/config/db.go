@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
@@ -27,5 +28,11 @@ func ConnectDB() {
 		log.Fatal("Failed to connect to the database:", err)
 	}
 	DB = db
+
+	sqlDB, _ := DB.DB()
+	sqlDB.SetMaxOpenConns(10)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
 	log.Println("Database connection established")
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"insight/models"
+	"time"
 )
 
 // login
@@ -80,6 +81,12 @@ type UserCreateRequest struct {
 	Twitter  string `json:"twitter"`
 }
 
+type AdminCreateRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required,min=2,max=50"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
 // Project
 type CreateProjectRequest struct {
 	Name        string   `json:"name" binding:"required,min=2,max=100"`
@@ -106,4 +113,21 @@ type ProjectListResponse struct {
 	Total    int64            `json:"total"`
 	Page     int              `json:"page"`
 	PageSize int              `json:"page_size"`
+}
+
+// Activity
+type CreateEventRequest struct {
+	Name        string    `json:"name" binding:"required"`
+	Type        string    `json:"type"`
+	Platform    string    `json:"platform"`
+	StartDate   time.Time `json:"start_date"`
+	EndDate     time.Time `json:"end_date"`
+	Description string    `json:"description"`
+}
+
+// OperationLog
+type CreateLogRequest struct {
+	TargetType string `json:"target_type" binding:"required"`
+	TargetID   uint   `json:"target_id" binding:"required"`
+	Content    string `json:"content" binding:"required"`
 }

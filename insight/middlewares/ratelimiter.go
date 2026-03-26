@@ -1,17 +1,34 @@
 package middlewares
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
-	"go.uber.org/ratelimit"
 )
 
-// LeakyBucketRateLimiter 创建一个基于漏桶算法的限流中间件
+// LeakyBucketRateLimiter 创建一个基于漏桶算法的限流中间件，超限立即返回 429
 func LeakyBucketRateLimiter(rate int) gin.HandlerFunc {
-	// 每秒可以处理的请求数量
-	rl := ratelimit.New(rate) // 每秒 rate 个请求
+	tokens := make(chan struct{}, rate)
+	for i := 0; i < rate; i++ {
+		tokens <- struct{}{}
+	}
+	go func() {
+		ticker := time.NewTicker(time.Second / time.Duration(rate))
+		defer ticker.Stop()
+		for range ticker.C {
+			select {
+			case tokens <- struct{}{}:
+			default:
+			}
+		}
+	}()
 
 	return func(c *gin.Context) {
-		rl.Take() // 等待直到有足够的空间进行处理
-		c.Next()
+		select {
+		case <-tokens:
+			c.Next()
+		default:
+			c.AbortWithStatusJSON(429, gin.H{"code": 429, "message": "Too many requests"})
+		}
 	}
 }

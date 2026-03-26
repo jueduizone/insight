@@ -1,18 +1,28 @@
 package models
 
 import (
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
 type User struct {
 	gorm.Model
-	Email    string `gorm:"unique;not null" json:"email"`
-	Username string `json:"username"`
-	Intro    string `json:"intro"`
-	Avatar   string `json:"avatar"`
-	Github   string `json:"github"`
-	Twitter  string `json:"twitter"`
-	Uid      uint   `json:"-"` // OAUTH
+	Email         string         `gorm:"unique;not null" json:"email"`
+	Username      string         `json:"username"`
+	Intro         string         `json:"intro"`
+	Avatar        string         `json:"avatar"`
+	Github        string         `json:"github"`
+	Twitter       string         `json:"twitter"`
+	Uid           uint           `json:"-"` // OAUTH
+	WalletAddress string         `json:"wallet_address"`
+	Web3InsightId string         `json:"web3insight_id"`
+	Tags          pq.StringArray `gorm:"type:text[]" json:"tags"`
+	Group         string         `json:"group" gorm:"default:normal"`
+	GithubStats   []byte         `gorm:"type:jsonb" json:"github_stats"`
+	TwitterStats  []byte         `gorm:"type:jsonb" json:"twitter_stats"`
+	Notes         string         `json:"notes"`
+	Role          string         `json:"role" gorm:"default:admin"`
+	PasswordHash  string         `json:"-"`
 }
 
 func GetUserByUid(uid uint) (*User, error) {
@@ -62,7 +72,7 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := db.Model(&User{})
+	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, avatar, github, twitter, wallet_address, web3insight_id, tags, \"group\", notes, role")
 
 	// 用户名模糊查询
 	if filter.Username != "" {
