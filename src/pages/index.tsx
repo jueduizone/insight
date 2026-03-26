@@ -1,229 +1,460 @@
-import { useEffect, useState } from "react";
-import { Card, Row, Col, Statistic, Space, Typography, Spin } from "antd";
-import { Line, Pie, Column } from "@ant-design/plots";
+import { useEffect, useState, useMemo } from "react";
 import {
-  Users,
-  Code,
-  Trophy,
-  Calendar,
-  TrendingUp,
-  PieChart,
-  Layers,
-} from "lucide-react";
-import { apiFetch } from "@/lib/api";
+  Row,
+  Col,
+  Card,
+  Statistic,
+  Typography,
+  Tag,
+  Space,
+  Avatar,
+  List,
+  Spin,
+} from "antd";
+import { Pie } from "@ant-design/plots";
+import { UserOutlined } from "@ant-design/icons";
+import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
-import styles from "./index.module.css";
+import { apiFetch } from "@/lib/api";
 
-const { Title } = Typography;
+const { Text } = Typography;
+
+const WEB3_TOKEN =
+  "eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOiIxIiwiaXNzIjoid2ViM2luc2lnaHRzLmFwcCIsImV4cCI6MTc5MzA2NDA4OSwidHlwZSI6ImFkbWluIiwiZXh0cmEiOnsiY2xhaW1zIjp7ImFsbG93ZWRfcm9sZXMiOlsidXNlciIsImFkbWluIl0sImRlZmF1bHRfcm9sZSI6InVzZXIiLCJ1c2VyX2lkIjoiMSJ9fX0.Rl39YXUbdrM-0V_fLbdgSLdpL3QxUWyPXdGSl_S6Y3Q";
+
+const CARD_STYLE: React.CSSProperties = {
+  borderRadius: 12,
+  boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+  border: "none",
+  height: "100%",
+};
+
+interface User {
+  ID: number;
+  CreatedAt: string;
+  email: string;
+  username: string;
+  avatar: string;
+  tags: string[] | null;
+  group: string;
+}
 
 interface UserListData {
-  users: unknown[];
+  users: User[];
   total: number;
-  page: number;
-  page_size: number;
+}
+
+interface ActivityEvent {
+  id: number;
+  created_at: string;
+  name: string;
+  type: string;
+  platform: string;
 }
 
 interface EventsData {
-  events: unknown[];
+  events: ActivityEvent[];
   total: number;
-  page: number;
-  page_size: number;
 }
 
-// Mock trend data (kept as-is per requirement)
-const activityChartData = [
-  ...([
-    { month: "2024-07", developers: 856, projects: 234 },
-    { month: "2024-08", developers: 923, projects: 267 },
-    { month: "2024-09", developers: 1001, projects: 289 },
-    { month: "2024-10", developers: 1089, projects: 312 },
-    { month: "2024-11", developers: 1156, projects: 334 },
-    { month: "2024-12", developers: 1247, projects: 356 },
-  ].map((d) => ({ month: d.month, value: d.developers, category: "开发者" }))),
-  ...([
-    { month: "2024-07", developers: 856, projects: 234 },
-    { month: "2024-08", developers: 923, projects: 267 },
-    { month: "2024-09", developers: 1001, projects: 289 },
-    { month: "2024-10", developers: 1089, projects: 312 },
-    { month: "2024-11", developers: 1156, projects: 334 },
-    { month: "2024-12", developers: 1247, projects: 356 },
-  ].map((d) => ({ month: d.month, value: d.projects, category: "项目" }))),
-];
+interface ProjectsData {
+  projects: unknown[];
+  total: number;
+}
 
-const activityConfig = {
-  data: activityChartData,
-  xField: "month",
-  yField: "value",
-  seriesField: "category",
-  color: ["#7c3aed", "#a78bfa"],
-  smooth: true,
-  legend: {
-    position: "top" as const,
-  },
-};
+interface Web3Actor {
+  rank: number;
+  login: string;
+  score: number;
+}
 
-const projectCategoryData = [
-  { type: "DeFi", value: 128 },
-  { type: "NFT", value: 89 },
-  { type: "GameFi", value: 67 },
-  { type: "DAO", value: 45 },
-  { type: "基础设施", value: 27 },
-];
-
-const pieConfig = {
-  data: projectCategoryData,
-  angleField: "value",
-  colorField: "type",
-  color: ["#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#ede9fe"],
-  radius: 0.9,
-  innerRadius: 0.6,
-  legend: {
-    position: "bottom" as const,
-  },
-};
-
-const techStackData = [
-  { tech: "Solidity", count: 234 },
-  { tech: "Rust", count: 156 },
-  { tech: "TypeScript", count: 298 },
-  { tech: "React", count: 267 },
-  { tech: "Node.js", count: 223 },
-];
-
-const columnConfig = {
-  data: techStackData,
-  xField: "tech",
-  yField: "count",
-  color: "#7c3aed",
-};
+interface GroupCount {
+  type: string;
+  value: number;
+}
 
 export default function Home() {
-  const [totalDevelopers, setTotalDevelopers] = useState<number | null>(null);
-  const [totalActivities, setTotalActivities] = useState<number | null>(null);
+  const router = useRouter();
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [totalDevs, setTotalDevs] = useState(0);
+  const [totalActivities, setTotalActivities] = useState(0);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>([]);
+  const [topActors, setTopActors] = useState<Web3Actor[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [web3Loading, setWeb3Loading] = useState(true);
 
   useEffect(() => {
-    async function fetchStats() {
-      try {
-        const [usersRes, eventsRes] = await Promise.all([
-          apiFetch<UserListData>("/v1/users?page=1&page_size=1"),
-          apiFetch<EventsData>("/v1/events?page=1&page_size=1"),
-        ]);
-        if (usersRes.code === 200) setTotalDevelopers(usersRes.data.total);
-        if (eventsRes.code === 200) setTotalActivities(eventsRes.data.total);
-      } catch {
-        // stats unavailable
-      } finally {
-        setStatsLoading(false);
-      }
-    }
-    fetchStats();
+    fetchAll();
+    fetchWeb3();
   }, []);
 
-  const stats = [
+  async function fetchAll() {
+    setStatsLoading(true);
+    try {
+      const [usersRes, eventsRes, projectsRes] = await Promise.all([
+        apiFetch<UserListData>("/v1/users?page=1&page_size=500"),
+        apiFetch<EventsData>("/v1/events?page=1&page_size=5"),
+        apiFetch<ProjectsData>("/v1/projects?page=1&page_size=1"),
+      ]);
+
+      if (usersRes.code === 200) {
+        setUsers(usersRes.data.users || []);
+        setTotalDevs(usersRes.data.total);
+      }
+      if (eventsRes.code === 200) {
+        setRecentEvents(eventsRes.data.events || []);
+        setTotalActivities(eventsRes.data.total);
+      }
+      if (projectsRes.code === 200) {
+        setTotalProjects(projectsRes.data.total ?? 0);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
+  async function fetchWeb3() {
+    setWeb3Loading(true);
+    try {
+      const res = await fetch(
+        "https://api.web3insight.ai/v1/actors/top?eco_name=Monad",
+        { headers: { Authorization: `Bearer ${WEB3_TOKEN}` } }
+      );
+      if (res.ok) {
+        const data = (await res.json()) as unknown;
+        let actors: Web3Actor[] = [];
+        if (Array.isArray(data)) {
+          actors = data as Web3Actor[];
+        } else if (data && typeof data === "object") {
+          const obj = data as Record<string, unknown>;
+          if (Array.isArray(obj["data"])) {
+            actors = obj["data"] as Web3Actor[];
+          } else if (Array.isArray(obj["actors"])) {
+            actors = obj["actors"] as Web3Actor[];
+          }
+        }
+        setTopActors(actors.slice(0, 5));
+      }
+    } catch {
+      // ignore network errors for external API
+    } finally {
+      setWeb3Loading(false);
+    }
+  }
+
+  // Group distribution for pie chart
+  const groupData: GroupCount[] = useMemo(() => {
+    const map: Record<string, number> = {};
+    users.forEach((u) => {
+      const g = u.group || "未分组";
+      map[g] = (map[g] || 0) + 1;
+    });
+    return Object.entries(map).map(([type, value]) => ({ type, value }));
+  }, [users]);
+
+  // Latest 10 developers sorted by CreatedAt desc
+  const latestDevs = useMemo(
+    () =>
+      [...users]
+        .sort(
+          (a, b) =>
+            new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime()
+        )
+        .slice(0, 10),
+    [users]
+  );
+
+  const pieConfig = {
+    data: groupData.length > 0 ? groupData : [{ type: "暂无数据", value: 1 }],
+    angleField: "value" as const,
+    colorField: "type" as const,
+    radius: 0.9,
+    innerRadius: 0.6,
+    label: false as const,
+    legend: { position: "bottom" as const },
+    color: ["#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#ede9fe", "#8b5cf6"],
+  };
+
+  const statCards = [
     {
-      title: "开发者总数",
-      value: totalDevelopers ?? 0,
-      icon: <Users className={styles.statIcon} />,
-      suffix: "+",
+      title: "总开发者数",
+      value: totalDevs,
+      color: "#7c3aed",
+    },
+    {
+      title: "本周活跃",
+      value: 0,
+      color: "#a78bfa",
+      note: "待 GitHub 采集后自动更新",
     },
     {
       title: "活动总数",
-      value: totalActivities ?? 0,
-      icon: <Calendar className={styles.statIcon} />,
-      suffix: "",
+      value: totalActivities,
+      color: "#6d28d9",
     },
     {
-      title: "黑客松活动",
-      value: 24,
-      icon: <Trophy className={styles.statIcon} />,
-      suffix: "",
-    },
-    {
-      title: "链上项目",
-      value: 356,
-      icon: <Code className={styles.statIcon} />,
-      suffix: "+",
+      title: "项目总数",
+      value: totalProjects,
+      color: "#5b21b6",
     },
   ];
 
   return (
     <Layout>
-      <div className={styles.container} style={{ padding: 0 }}>
-        {/* Stats */}
-        <div className={styles.statsSection}>
-          <Spin spinning={statsLoading}>
-            <Row gutter={[24, 24]}>
-              {stats.map((stat, index) => (
-                <Col xs={24} sm={12} lg={6} key={index}>
-                  <Card className={styles.statCard} variant="filled">
-                    <div className={styles.statIconWrapper}>{stat.icon}</div>
-                    <Statistic
-                      title={stat.title}
-                      value={stat.value}
-                      suffix={stat.suffix}
-                      styles={{ value: { color: "#7c3aed", fontWeight: 600 } }}
-                    />
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Spin>
-        </div>
-
-        {/* Charts */}
-        <div className={styles.chartsSection}>
-          <Title level={2} className={styles.sectionTitle}>
-            <TrendingUp className={styles.titleIcon} />
-            数据概览
-          </Title>
-          <Row gutter={[24, 24]}>
-            <Col xs={24} xl={16}>
-              <Card
-                title={
-                  <Space>
-                    <TrendingUp size={18} color="#7c3aed" />
-                    <span>开发者活跃度趋势</span>
-                  </Space>
-                }
-                className={styles.chartCard}
-                variant="borderless"
-              >
-                <Line {...activityConfig} height={320} />
-              </Card>
-            </Col>
-
-            <Col xs={24} xl={8}>
-              <Card
-                title={
-                  <Space>
-                    <PieChart size={18} color="#7c3aed" />
-                    <span>项目分类分布</span>
-                  </Space>
-                }
-                className={styles.chartCard}
-                variant="borderless"
-              >
-                <Pie {...pieConfig} height={320} />
-              </Card>
-            </Col>
-
-            <Col xs={24}>
-              <Card
-                title={
-                  <Space>
-                    <Layers size={18} color="#7c3aed" />
-                    <span>技术栈使用分布</span>
-                  </Space>
-                }
-                className={styles.chartCard}
-                variant="borderless"
-              >
-                <Column {...columnConfig} height={280} />
-              </Card>
-            </Col>
+      <div>
+        {/* Stat Cards */}
+        <Spin spinning={statsLoading}>
+          <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
+            {statCards.map((s, i) => (
+              <Col xs={24} sm={12} lg={6} key={i}>
+                <Card style={CARD_STYLE}>
+                  <Statistic
+                    title={
+                      <Space direction="vertical" size={0}>
+                        <Text style={{ fontSize: 14 }}>{s.title}</Text>
+                        {s.note && (
+                          <Text
+                            type="secondary"
+                            style={{ fontSize: 11, fontWeight: 400 }}
+                          >
+                            {s.note}
+                          </Text>
+                        )}
+                      </Space>
+                    }
+                    value={s.value}
+                    valueStyle={{ color: s.color, fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+            ))}
           </Row>
-        </div>
+        </Spin>
+
+        {/* Middle Row: Pie + Events + Web3 */}
+        <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
+          {/* Group Distribution Pie */}
+          <Col xs={24} lg={14}>
+            <Card title="开发者分组分布" style={CARD_STYLE}>
+              <Spin spinning={statsLoading}>
+                {groupData.length > 0 ? (
+                  <Pie {...pieConfig} height={300} />
+                ) : (
+                  <div style={{ textAlign: "center", padding: "60px 0" }}>
+                    <Text type="secondary">暂无分组数据</Text>
+                  </div>
+                )}
+              </Spin>
+            </Card>
+          </Col>
+
+          {/* Right column: recent events + web3 */}
+          <Col xs={24} lg={10}>
+            <Space direction="vertical" size={20} style={{ width: "100%" }}>
+              {/* Recent Events */}
+              <Card
+                title="最近活动"
+                style={{ ...CARD_STYLE, height: "auto" }}
+              >
+                <Spin spinning={statsLoading}>
+                  {recentEvents.length === 0 ? (
+                    <div style={{ padding: "16px 0", textAlign: "center" }}>
+                      <Text type="secondary">暂无活动</Text>
+                    </div>
+                  ) : (
+                    <List
+                      dataSource={recentEvents}
+                      renderItem={(ev) => (
+                        <List.Item style={{ padding: "10px 0" }}>
+                          <div style={{ width: "100%" }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 8,
+                              }}
+                            >
+                              <Text strong style={{ flex: 1 }}>
+                                {ev.name}
+                              </Text>
+                              {ev.type && (
+                                <Tag color="purple" style={{ fontSize: 11 }}>
+                                  {ev.type}
+                                </Tag>
+                              )}
+                            </div>
+                            <Text
+                              type="secondary"
+                              style={{
+                                fontSize: 12,
+                                marginTop: 2,
+                                display: "block",
+                              }}
+                            >
+                              {ev.platform ? `${ev.platform} · ` : ""}
+                              {new Date(ev.created_at).toLocaleDateString(
+                                "zh-CN"
+                              )}
+                            </Text>
+                          </div>
+                        </List.Item>
+                      )}
+                    />
+                  )}
+                </Spin>
+              </Card>
+
+              {/* Web3Insight TOP 5 */}
+              <Card
+                title={
+                  <Space>
+                    <span>🏆 生态 TOP 开发者</span>
+                    <Text
+                      type="secondary"
+                      style={{ fontSize: 12, fontWeight: 400 }}
+                    >
+                      Monad · Web3Insight
+                    </Text>
+                  </Space>
+                }
+                style={{ ...CARD_STYLE, height: "auto" }}
+              >
+                <Spin spinning={web3Loading}>
+                  {!web3Loading && topActors.length === 0 ? (
+                    <div style={{ padding: "16px 0", textAlign: "center" }}>
+                      <Text type="secondary">暂无数据</Text>
+                    </div>
+                  ) : (
+                    <List
+                      dataSource={topActors}
+                      renderItem={(actor) => (
+                        <List.Item style={{ padding: "8px 0" }}>
+                          <Space
+                            style={{
+                              width: "100%",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <Space size={10}>
+                              <Text
+                                strong
+                                style={{
+                                  color:
+                                    actor.rank <= 3 ? "#7c3aed" : "#6b7280",
+                                  width: 20,
+                                  display: "inline-block",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {actor.rank}
+                              </Text>
+                              <a
+                                href={`https://github.com/${actor.login}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {actor.login}
+                              </a>
+                            </Space>
+                            <Tag color="purple">
+                              {typeof actor.score === "number"
+                                ? actor.score.toFixed(1)
+                                : String(actor.score)}
+                            </Tag>
+                          </Space>
+                        </List.Item>
+                      )}
+                    />
+                  )}
+                </Spin>
+              </Card>
+            </Space>
+          </Col>
+        </Row>
+
+        {/* Latest Developers */}
+        <Card
+          title={`最新加入的开发者（最近 ${latestDevs.length} 位）`}
+          style={{ ...CARD_STYLE, height: "auto" }}
+        >
+          <Spin spinning={statsLoading}>
+            {latestDevs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <Text type="secondary">暂无开发者数据</Text>
+              </div>
+            ) : (
+              <Row gutter={[12, 12]}>
+                {latestDevs.map((dev) => (
+                  <Col xs={24} sm={12} md={8} lg={6} xl={4} key={dev.ID}>
+                    <Card
+                      size="small"
+                      hoverable
+                      style={{ cursor: "pointer", borderRadius: 10 }}
+                      onClick={() => router.push(`/developers/${dev.ID}`)}
+                    >
+                      <Space
+                        direction="vertical"
+                        size={6}
+                        style={{ width: "100%" }}
+                      >
+                        <Space size={10}>
+                          <Avatar
+                            size={36}
+                            icon={<UserOutlined />}
+                            src={dev.avatar || undefined}
+                          />
+                          <div style={{ overflow: "hidden", flex: 1 }}>
+                            <Text
+                              strong
+                              ellipsis
+                              style={{ display: "block", maxWidth: 100 }}
+                            >
+                              {dev.username || dev.email || "—"}
+                            </Text>
+                            {dev.group && (
+                              <Tag
+                                color="blue"
+                                style={{ fontSize: 11, marginTop: 2 }}
+                              >
+                                {dev.group}
+                              </Tag>
+                            )}
+                          </div>
+                        </Space>
+                        {(dev.tags?.length ?? 0) > 0 && (
+                          <Space wrap size={4}>
+                            {dev.tags!.slice(0, 2).map((t) => (
+                              <Tag
+                                key={t}
+                                color="purple"
+                                style={{ fontSize: 11 }}
+                              >
+                                {t}
+                              </Tag>
+                            ))}
+                            {dev.tags!.length > 2 && (
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: 11 }}
+                              >
+                                +{dev.tags!.length - 2}
+                              </Text>
+                            )}
+                          </Space>
+                        )}
+                      </Space>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            )}
+          </Spin>
+        </Card>
       </div>
     </Layout>
   );

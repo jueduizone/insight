@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8080";
+export const API_BASE = "http://localhost:8080";
 
 export interface ApiResponse<T = unknown> {
   code: number;
@@ -15,8 +15,11 @@ export async function apiFetch<T = unknown>(
       ? localStorage.getItem("insight_token")
       : null;
 
+  // Skip Content-Type for FormData so the browser sets it with the correct boundary
+  const isFormData = options?.body instanceof FormData;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(!isFormData ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 

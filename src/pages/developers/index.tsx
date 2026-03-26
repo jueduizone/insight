@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/router";
 import {
   Table,
   Input,
@@ -53,6 +54,7 @@ interface UserListData {
 }
 
 export default function DevelopersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -285,7 +287,7 @@ export default function DevelopersPage() {
               type="text"
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => message.info(`用户 ID: ${record.ID}`)}
+              onClick={() => router.push(`/developers/${record.ID}`)}
             />
           </Tooltip>
           <Tooltip title="编辑">
