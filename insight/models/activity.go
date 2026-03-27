@@ -119,6 +119,29 @@ func GetUserByWalletAddress(wallet string) (*User, error) {
 	return &u, nil
 }
 
+func UpsertActivityRecord(record *ActivityRecord) (created bool, err error) {
+	var existing ActivityRecord
+	result := db.Where("user_id = ? AND event_id = ?", record.UserID, record.EventID).First(&existing)
+	if result.Error == nil {
+		// Record exists — update non-empty fields
+		if record.Award != "" {
+			existing.Award = record.Award
+		}
+		if record.Role != "" {
+			existing.Role = record.Role
+		}
+		if record.Status != "" {
+			existing.Status = record.Status
+		}
+		if len(record.ExtraData) > 0 {
+			existing.ExtraData = record.ExtraData
+		}
+		return false, db.Save(&existing).Error
+	}
+	// No existing record — create new
+	return true, db.Create(record).Error
+}
+
 func UpdateActivityEvent(event *ActivityEvent) error {
 	return db.Save(event).Error
 }

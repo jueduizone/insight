@@ -244,6 +244,8 @@ func ImportCSV(c *gin.Context) {
 
 	created := 0
 	merged := 0
+	recordCreated := 0
+	recordUpdated := 0
 	var githubLogins []string
 
 	for _, row := range rows {
@@ -348,7 +350,12 @@ func ImportCSV(c *gin.Context) {
 			Status:    status,
 			ExtraData: extraJSON,
 		}
-		models.CreateActivityRecord(&record)
+		wasCreated, _ := models.UpsertActivityRecord(&record)
+		if wasCreated {
+			recordCreated++
+		} else {
+			recordUpdated++
+		}
 
 		if github != "" {
 			githubLogins = append(githubLogins, github)
@@ -371,6 +378,8 @@ func ImportCSV(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Import complete", gin.H{
 		"created":               created,
 		"merged":                merged,
+		"record_created":        recordCreated,
+		"record_updated":        recordUpdated,
 		"web3insight_triggered": web3insightTriggered,
 	})
 }
