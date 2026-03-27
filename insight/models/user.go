@@ -149,17 +149,17 @@ func UpdateUserActivityScore(userID uint, score int) error {
 
 func CountUsers() (int64, error) {
 	var count int64
-	return count, db.Model(&User{}).Count(&count).Error
+	return count, db.Model(&User{}).Where("role = ?", "member").Count(&count).Error
 }
 
 func CountUsersCreatedAfter(t time.Time) (int64, error) {
 	var count int64
-	return count, db.Model(&User{}).Where("created_at >= ?", t).Count(&count).Error
+	return count, db.Model(&User{}).Where("role = ? AND created_at >= ?", "member", t).Count(&count).Error
 }
 
 func CountActiveUsers() (int64, error) {
 	var count int64
-	return count, db.Model(&User{}).Where("activity_score > 0").Count(&count).Error
+	return count, db.Model(&User{}).Where("role = ? AND activity_score > 0", "member").Count(&count).Error
 }
 
 // GetUsersForProjectsCleaning returns users that have projects_raw set but not yet cleaned.
