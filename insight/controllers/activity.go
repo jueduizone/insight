@@ -270,6 +270,11 @@ func ImportCSV(c *gin.Context) {
 			username = strings.TrimSpace(lastName + " " + firstName)
 		}
 
+		// Skip rows with no identity fields
+		if email == "" && github == "" && wallet == "" && username == "" {
+			continue
+		}
+
 		// Dedup: find existing user by priority
 		var existingUser *models.User
 
@@ -343,6 +348,7 @@ func ImportCSV(c *gin.Context) {
 				newUser.ProjectsCleaned = false
 			}
 			if err := models.CreateUser(&newUser); err != nil {
+				log.Printf("[ImportCSV] CreateUser failed for email=%s github=%s: %v", email, github, err)
 				continue
 			}
 			userID = newUser.ID
