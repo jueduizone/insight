@@ -160,6 +160,13 @@ func GenerateUserProfile(c *gin.Context) {
 		return
 	}
 
+	// If user has no meaningful data, skip AI call
+	if user.Github == "" && user.Intro == "" && user.MonadExperience == "" &&
+		user.ExistingProjects == "" && len(records) == 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "用户数据不足，无法生成画像", nil)
+		return
+	}
+
 	// Build prompt from user info + activity records
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("开发者信息：\n用户名: %s\n邮箱: %s\n", user.Username, user.Email))

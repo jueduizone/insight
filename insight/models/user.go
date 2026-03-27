@@ -13,7 +13,10 @@ import (
 //   ALTER TABLE users ADD COLUMN projects_cleaned_at TIMESTAMP;
 
 type User struct {
-	gorm.Model
+	gorm.Model        `json:"-"`
+	ID                uint           `gorm:"primarykey" json:"id"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
 	Email             string         `gorm:"unique;not null" json:"email"`
 	Username          string         `json:"username"`
 	Intro             string         `json:"intro"`
