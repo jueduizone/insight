@@ -15,7 +15,7 @@ const zenmuxToken = "sk-ss-v1-196d706809b60c6ccf68e30afa1a711ce1b834674822781bd9
 // CallKimi calls the Zenmux/Kimi API with the given system and user prompts.
 func CallKimi(systemPrompt, userPrompt string) (string, error) {
 	body, err := json.Marshal(map[string]interface{}{
-		"model": "moonshot/kimi-k2.5",
+		"model": "kimi-k2.5",
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
