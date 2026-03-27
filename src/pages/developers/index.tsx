@@ -48,6 +48,9 @@ interface User {
   avatar: string;
   github: string;
   twitter: string;
+  wechat?: string;
+  telegram?: string;
+  existing_projects?: string;
   wallet_address: string;
   web3insight_id: string;
   tags: string[] | null;
@@ -521,6 +524,24 @@ export default function DevelopersPage() {
           ))}
         </Space>
       ),
+    },
+    {
+      title: "已有项目",
+      dataIndex: "existing_projects",
+      key: "existing_projects",
+      render: (val: string) => {
+        if (!val) return <Text type="secondary">—</Text>;
+        const projects = val.split(",").map((s) => s.trim()).filter(Boolean);
+        return (
+          <Space wrap size={4}>
+            {projects.map((p) => (
+              <Tag key={p} color="cyan" style={{ fontSize: 12 }}>
+                {p}
+              </Tag>
+            ))}
+          </Space>
+        );
+      },
     },
     {
       title: "分组",

@@ -28,6 +28,7 @@ import {
   SyncOutlined,
   TwitterOutlined,
   WalletOutlined,
+  WechatOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch } from "@/lib/api";
@@ -44,6 +45,9 @@ interface UserDetail {
   avatar: string;
   github: string;
   twitter: string;
+  wechat?: string;
+  telegram?: string;
+  existing_projects?: string;
   wallet_address: string;
   web3insight_id: string;
   tags: string[] | null;
@@ -353,6 +357,14 @@ export default function DeveloperDetailPage() {
                     </Tag>
                   </Tooltip>
                 )}
+                {user.wechat && (
+                  <Tag icon={<WechatOutlined />} color="green">
+                    {user.wechat}
+                  </Tag>
+                )}
+                {user.telegram && (
+                  <Tag color="blue">@{user.telegram}</Tag>
+                )}
               </Space>
 
               {(user.tags?.length ?? 0) > 0 && (
@@ -413,6 +425,24 @@ export default function DeveloperDetailPage() {
                         >
                           {user.notes}
                         </Paragraph>
+                      </div>
+                    )}
+                    {user.existing_projects && (
+                      <div>
+                        <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
+                          已有项目：
+                        </Text>
+                        <Space wrap size={4}>
+                          {user.existing_projects
+                            .split(",")
+                            .map((p) => p.trim())
+                            .filter(Boolean)
+                            .map((p) => (
+                              <Tag key={p} color="cyan">
+                                {p}
+                              </Tag>
+                            ))}
+                        </Space>
                       </div>
                     )}
                   </Space>
