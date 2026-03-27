@@ -89,6 +89,9 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 
 	if filter.Role != "" {
 		query = query.Where("role = ?", filter.Role)
+	} else {
+		// 默认排除管理员账号，只显示开发者
+		query = query.Where("role NOT IN ?", []string{"admin", "super_admin"})
 	}
 
 	// 统计总数
