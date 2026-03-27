@@ -17,6 +17,8 @@ import {
   SettingOutlined,
   LogoutOutlined,
   UserOutlined,
+  AppstoreOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -71,6 +73,16 @@ export default function Layout({ children }: LayoutProps) {
       label: <Link href="/activities">活动管理</Link>,
     },
     {
+      key: "/projects",
+      icon: <AppstoreOutlined />,
+      label: <Link href="/projects">项目管理</Link>,
+    },
+    {
+      key: "/projects/hackathon",
+      icon: <UploadOutlined />,
+      label: <Link href="/projects/hackathon">Hackathon 导入</Link>,
+    },
+    {
       key: "/operations",
       icon: <FileTextOutlined />,
       label: <Link href="/operations">运营记录</Link>,
@@ -89,13 +101,18 @@ export default function Layout({ children }: LayoutProps) {
   const roleLabel = isSuperAdmin ? "super_admin" : "admin";
   const roleColor = isSuperAdmin ? "gold" : "blue";
 
-  // Match active menu key (handle sub-routes like /developers/123)
+  // Match active menu key (more specific paths first)
   const activeKey =
     router.pathname === "/"
       ? "/"
-      : Object.keys({ "/developers": 1, "/activities": 1, "/operations": 1, "/settings": 1 }).find(
-          (k) => router.pathname.startsWith(k)
-        ) ?? router.pathname;
+      : [
+          "/projects/hackathon",
+          "/projects",
+          "/developers",
+          "/activities",
+          "/operations",
+          "/settings",
+        ].find((k) => router.pathname.startsWith(k)) ?? router.pathname;
 
   return (
     <AntLayout style={{ minHeight: "100vh" }}>
