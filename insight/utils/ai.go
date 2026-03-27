@@ -12,16 +12,16 @@ import (
 const zenmuxURL = "https://zenmux.ai/api/v1/chat/completions"
 const zenmuxToken = "sk-ss-v1-196d706809b60c6ccf68e30afa1a711ce1b834674822781bd972b3885ab640e0"
 
-// CallKimi calls the Zenmux/Kimi API with the given system and user prompts.
-func CallKimi(systemPrompt, userPrompt string) (string, error) {
+// callZenmux is the internal helper to call the Zenmux API.
+func callZenmux(model string, maxTokens int, temperature float64, systemPrompt, userPrompt string) (string, error) {
 	body, err := json.Marshal(map[string]interface{}{
-		"model": "kimi-k2.5",
+		"model": model,
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"max_tokens":  3000,
-		"temperature": 1,
+		"max_tokens":  maxTokens,
+		"temperature": temperature,
 	})
 	if err != nil {
 		return "", err
@@ -34,7 +34,7 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+zenmuxToken)
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -75,9 +75,14 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 	return content, nil
 }
 
-// GenerateProfile calls Zenmux/Kimi API to generate a developer profile.
+// CallKimi uses gpt-4o-mini for fast, lightweight tasks (field mapping, extraction).
+func CallKimi(systemPrompt, userPrompt string) (string, error) {
+	return callZenmux("gpt-4o-mini", 500, 0.3, systemPrompt, userPrompt)
+}
+
+// GenerateProfile uses gpt-4o-mini to generate a developer profile summary.
 func GenerateProfile(prompt string) (string, error) {
-	return CallKimi(
+	return callZenmux("gpt-4o-mini", 800, 0.7,
 		"你是 Monad 生态运营助手，根据开发者的活动参与信息生成简洁的开发者画像，用中文，100-200字，重点描述：技术背景、参与活动情况、已有项目、对 Monad/Web3 的兴趣方向。",
 		prompt,
 	)
