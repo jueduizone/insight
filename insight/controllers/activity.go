@@ -317,6 +317,7 @@ func ImportCSV(c *gin.Context) {
 				Wechat:           wechat,
 				Telegram:         telegram,
 				ExistingProjects: existingProjects,
+				Role:             "member",
 			}
 			if err := models.CreateUser(&newUser); err != nil {
 				continue
