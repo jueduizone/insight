@@ -65,6 +65,7 @@ interface User {
   notes: string;
   role: string;
   activity_score: number;
+  first_joined_at?: string;
 }
 
 interface UserListData {
@@ -109,6 +110,7 @@ const SYSTEM_FIELDS = [
   "existing_projects",
   "intro",
   "monad_experience",
+  "joined_at",
   "award",
   "role",
   "status",
@@ -125,6 +127,7 @@ const FIELD_LABELS: Record<string, string> = {
   existing_projects: "已有项目",
   intro: "描述",
   monad_experience: "Monad 经验",
+  joined_at: "首次加入时间",
   award: "获奖情况",
   role: "角色",
   status: "参与状态",
@@ -686,6 +689,20 @@ export default function DevelopersPage() {
         const status: "processing" | "warning" | "success" =
           score >= 61 ? "success" : score >= 31 ? "warning" : "processing";
         return <Badge status={status} text={String(score)} />;
+      },
+    },
+    {
+      title: "首次加入",
+      key: "first_joined_at",
+      width: 110,
+      sorter: (a: User, b: User) => {
+        if (!a.first_joined_at) return 1;
+        if (!b.first_joined_at) return -1;
+        return new Date(a.first_joined_at).getTime() - new Date(b.first_joined_at).getTime();
+      },
+      render: (_: unknown, record: User) => {
+        if (!record.first_joined_at || record.first_joined_at.startsWith("0001-")) return <Text type="secondary">—</Text>;
+        return <Text style={{ fontSize: 12 }}>{record.first_joined_at.slice(0, 10)}</Text>;
       },
     },
     {

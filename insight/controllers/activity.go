@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -264,6 +265,16 @@ func ImportCSV(c *gin.Context) {
 		existingProjects := getValue(row, "existing_projects")
 		intro := getValue(row, "intro")
 		monadExperience := getValue(row, "monad_experience")
+		joinedAtStr := getValue(row, "joined_at")
+
+		// Parse joined_at: try common formats
+		var joinedAt *time.Time
+		for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05Z", "2006/01/02 15:04:05", "2006-01-02"} {
+			if t, err := time.Parse(layout, strings.TrimSpace(joinedAtStr)); err == nil {
+				joinedAt = &t
+				break
+			}
+		}
 
 		// If username is empty but first/last name present, compose it (姓在前)
 		if username == "" && (lastName != "" || firstName != "") {
@@ -326,6 +337,12 @@ func ImportCSV(c *gin.Context) {
 			if existingUser.Role != "admin" && existingUser.Role != "super_admin" {
 				existingUser.Role = "member"
 			}
+			// 更新 first_joined_at：取最早时间
+			if joinedAt != nil {
+				if existingUser.FirstJoinedAt == nil || joinedAt.Before(*existingUser.FirstJoinedAt) {
+					existingUser.FirstJoinedAt = joinedAt
+				}
+			}
 			models.UpdateUser(existingUser)
 			userID = existingUser.ID
 			merged++
@@ -342,6 +359,7 @@ func ImportCSV(c *gin.Context) {
 				Intro:            intro,
 				MonadExperience:  monadExperience,
 				Role:             "member",
+				FirstJoinedAt:    joinedAt,
 			}
 			if len(existingProjects) > 30 {
 				newUser.ProjectsRaw = existingProjects
@@ -360,7 +378,7 @@ func ImportCSV(c *gin.Context) {
 			"email": true, "username": true, "first_name": true, "last_name": true,
 			"github": true, "wallet_address": true, "award": true, "role": true,
 			"status": true, "wechat": true, "telegram": true, "existing_projects": true,
-			"intro": true, "monad_experience": true,
+			"intro": true, "monad_experience": true, "joined_at": true,
 		}
 		extraData := make(map[string]string)
 		for field, col := range fieldMapping {
