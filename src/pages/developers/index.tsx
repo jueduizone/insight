@@ -490,11 +490,11 @@ export default function DevelopersPage() {
       render: (github: string) =>
         github ? (
           <a
-            href={`https://github.com/${github}`}
+            href={github.startsWith("http") ? github : `https://github.com/${github}`}
             target="_blank"
             rel="noreferrer"
           >
-            {github}
+            {github.replace(/^https?:\/\/(www\.)?github\.com\//, "")}
           </a>
         ) : (
           <Text type="secondary">—</Text>

@@ -384,12 +384,12 @@ export default function DeveloperDetailPage() {
               <Space wrap size={8} style={{ marginBottom: 10 }}>
                 {user.github && (
                   <a
-                    href={`https://github.com/${user.github}`}
+                    href={user.github.startsWith("http") ? user.github : `https://github.com/${user.github}`}
                     target="_blank"
                     rel="noreferrer"
                   >
                     <Tag icon={<GithubOutlined />} color="default">
-                      {user.github}
+                      {user.github.replace(/^https?:\/\/(www\.)?github\.com\//, "")}
                     </Tag>
                   </a>
                 )}
@@ -488,17 +488,26 @@ export default function DeveloperDetailPage() {
                         >
                           已有项目：
                         </Text>
-                        <Space wrap size={4}>
-                          {user.existing_projects
-                            .split(",")
-                            .map((p) => p.trim())
-                            .filter(Boolean)
-                            .map((p) => (
-                              <Tag key={p} color="cyan">
-                                {p}
-                              </Tag>
-                            ))}
-                        </Space>
+                        {(() => {
+                          const parts = user.existing_projects!.split(",").map(p => p.trim()).filter(Boolean);
+                          // 单条长文本（描述性内容）→ 截断显示
+                          if (parts.length === 1 && parts[0].length > 20) {
+                            return (
+                              <Text style={{ fontSize: 13, wordBreak: "break-all", display: "block", maxHeight: 60, overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {parts[0].slice(0, 80)}{parts[0].length > 80 ? "…" : ""}
+                              </Text>
+                            );
+                          }
+                          return (
+                            <Space wrap size={4}>
+                              {parts.map((p) => (
+                                <Tag key={p} color="cyan" style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {p.length > 20 ? p.slice(0, 20) + "…" : p}
+                                </Tag>
+                              ))}
+                            </Space>
+                          );
+                        })()}
                       </div>
                     )}
                   </Space>
