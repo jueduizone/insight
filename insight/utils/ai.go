@@ -20,7 +20,7 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"max_tokens":  1000,
+		"max_tokens":  3000,
 		"temperature": 1,
 	})
 	if err != nil {
@@ -34,7 +34,7 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+zenmuxToken)
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
