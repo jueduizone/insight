@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"insight/models"
 	"insight/utils"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -135,6 +137,74 @@ func ChangePassword(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Password changed successfully", nil)
+}
+
+// GenerateUserProfile POST /v1/users/:id/generate-profile
+func GenerateUserProfile(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid ID", nil)
+		return
+	}
+
+	user, err := models.GetUserById(uint(id))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "User not found", nil)
+		return
+	}
+
+	records, err := models.GetRecordsByUserID(uint(id))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch activity", err.Error())
+		return
+	}
+
+	// Build prompt from user info + activity records
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("开发者信息：\n用户名: %s\n邮箱: %s\n", user.Username, user.Email))
+	if user.Github != "" {
+		sb.WriteString(fmt.Sprintf("GitHub: %s\n", user.Github))
+	}
+	if user.Intro != "" {
+		sb.WriteString(fmt.Sprintf("简介: %s\n", user.Intro))
+	}
+	if user.MonadExperience != "" {
+		sb.WriteString(fmt.Sprintf("Monad经验: %s\n", user.MonadExperience))
+	}
+	if user.ExistingProjects != "" {
+		sb.WriteString(fmt.Sprintf("已有项目: %s\n", user.ExistingProjects))
+	}
+
+	if len(records) > 0 {
+		sb.WriteString("\n参与活动记录：\n")
+		for _, r := range records {
+			sb.WriteString(fmt.Sprintf("- 活动: %s, 角色: %s, 奖项: %s, 状态: %s\n",
+				r.Event.Name, r.Role, r.Award, r.Status))
+			if len(r.ExtraData) > 0 {
+				var extra map[string]interface{}
+				if json.Unmarshal(r.ExtraData, &extra) == nil {
+					for k, v := range extra {
+						sb.WriteString(fmt.Sprintf("  %s: %v\n", k, v))
+					}
+				}
+			}
+		}
+	}
+
+	profile, err := utils.GenerateProfile(sb.String())
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to generate profile", err.Error())
+		return
+	}
+
+	user.Notes = profile
+	if err := models.UpdateUser(user); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save profile", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Profile generated", gin.H{"notes": profile})
 }
 
 // SyncUserWeb3Insight POST /v1/users/:id/sync-web3insight

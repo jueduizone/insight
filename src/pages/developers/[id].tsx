@@ -29,6 +29,7 @@ import {
   TwitterOutlined,
   WalletOutlined,
   WechatOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch } from "@/lib/api";
@@ -92,6 +93,7 @@ interface ActivityRecord {
   award: string;
   role: string;
   status: string;
+  extra_data?: string;
   event?: ActivityEvent;
 }
 
@@ -150,6 +152,7 @@ export default function DeveloperDetailPage() {
   const [projects, setProjects] = useState<Project[]>([]);
 
   const [syncing, setSyncing] = useState(false);
+  const [generatingProfile, setGeneratingProfile] = useState(false);
 
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [logSubmitting, setLogSubmitting] = useState(false);
@@ -278,6 +281,27 @@ export default function DeveloperDetailPage() {
     }
   };
 
+  const handleGenerateProfile = async () => {
+    if (!id) return;
+    const uid = Array.isArray(id) ? id[0] : id;
+    setGeneratingProfile(true);
+    try {
+      const res = await apiFetch<{ notes: string }>(`/v1/users/${uid}/generate-profile`, {
+        method: "POST",
+      });
+      if (res.code === 200) {
+        message.success("AI 画像生成成功");
+        fetchUser(uid);
+      } else {
+        message.error(res.message || "生成失败");
+      }
+    } catch {
+      message.error("生成失败");
+    } finally {
+      setGeneratingProfile(false);
+    }
+  };
+
   const githubStats = user ? parseGithubStats(user.github_stats) : null;
 
   const activeReposList = githubStats
@@ -311,30 +335,83 @@ export default function DeveloperDetailPage() {
     );
   }
 
-  const activityTimelineItems = activity.map((r) => ({
-    key: r.id,
-    color: r.award ? "gold" : "blue",
-    children: (
-      <div>
-        <Space wrap size={4}>
-          <Text strong>{r.event?.name ?? `活动 #${r.event_id}`}</Text>
-          {r.event?.type && <Tag color="purple">{r.event.type}</Tag>}
-          {r.award && <Tag color="gold">{r.award}</Tag>}
-          {r.role && <Tag color="default">{r.role}</Tag>}
-          {r.status && <Tag color="green">{r.status}</Tag>}
-        </Space>
-        {r.event?.start_date && (
-          <Text
-            type="secondary"
-            style={{ display: "block", fontSize: 12, marginTop: 2 }}
-          >
-            {new Date(r.event.start_date).toLocaleDateString("zh-CN")}
-            {r.event.platform ? ` · ${r.event.platform}` : ""}
-          </Text>
-        )}
-      </div>
-    ),
-  }));
+  function parseExtraData(raw?: string): Record<string, string> | null {
+    if (!raw) return null;
+    try {
+      const decoded = atob(raw);
+      const obj = JSON.parse(decoded);
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj as Record<string, string>;
+    } catch {
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj as Record<string, string>;
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  }
+
+  const activityTimelineItems = activity.map((r) => {
+    const extra = parseExtraData(r.extra_data);
+    const extraEntries = extra
+      ? Object.entries(extra).filter(([, v]) => v !== "" && v !== null && v !== undefined)
+      : [];
+    return {
+      key: r.id,
+      color: r.award ? "gold" : "blue",
+      children: (
+        <div>
+          <Space wrap size={4}>
+            <Text strong>{r.event?.name ?? `活动 #${r.event_id}`}</Text>
+            {r.event?.type && <Tag color="purple">{r.event.type}</Tag>}
+            {r.award && <Tag color="gold">{r.award}</Tag>}
+            {r.role && <Tag color="default">{r.role}</Tag>}
+            {r.status && <Tag color="green">{r.status}</Tag>}
+          </Space>
+          {r.event?.start_date && (
+            <Text
+              type="secondary"
+              style={{ display: "block", fontSize: 12, marginTop: 2 }}
+            >
+              {new Date(r.event.start_date).toLocaleDateString("zh-CN")}
+              {r.event.platform ? ` · ${r.event.platform}` : ""}
+            </Text>
+          )}
+          {extraEntries.length > 0 && (
+            <details style={{ marginTop: 6 }}>
+              <summary
+                style={{
+                  fontSize: 11,
+                  color: "#999",
+                  cursor: "pointer",
+                  userSelect: "none",
+                }}
+              >
+                原始数据
+              </summary>
+              <div
+                style={{
+                  background: "#f5f5f5",
+                  borderRadius: 4,
+                  padding: "6px 10px",
+                  marginTop: 4,
+                  fontSize: 12,
+                }}
+              >
+                {extraEntries.map(([k, v]) => (
+                  <div key={k} style={{ marginBottom: 2 }}>
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>{k}：</Text>
+                    <Text style={{ fontSize: 12, color: "#333" }}>{String(v)}</Text>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      ),
+    };
+  });
 
   return (
     <Layout>
@@ -444,6 +521,17 @@ export default function DeveloperDetailPage() {
                   title="基础信息"
                   size="small"
                   style={{ borderRadius: 12, height: "100%" }}
+                  extra={
+                    <Button
+                      size="small"
+                      icon={<ThunderboltOutlined />}
+                      loading={generatingProfile}
+                      onClick={handleGenerateProfile}
+                      style={{ color: "#7c3aed", borderColor: "#7c3aed" }}
+                    >
+                      生成 AI 画像
+                    </Button>
+                  }
                 >
                   <Space direction="vertical" style={{ width: "100%" }}>
                     {user.web3insight_id && (
