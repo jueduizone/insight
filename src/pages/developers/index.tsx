@@ -515,13 +515,15 @@ export default function DevelopersPage() {
       title: "标签",
       dataIndex: "tags",
       key: "tags",
+      width: 150,
       render: (tags: string[] | null) => (
         <Space wrap size={4}>
-          {(tags || []).map((t) => (
+          {(tags || []).slice(0, 3).map((t) => (
             <Tag key={t} color="purple" style={{ fontSize: 12 }}>
               {t}
             </Tag>
           ))}
+          {(tags || []).length > 3 && <Text type="secondary" style={{ fontSize: 12 }}>+{(tags || []).length - 3}</Text>}
         </Space>
       ),
     },
@@ -529,16 +531,26 @@ export default function DevelopersPage() {
       title: "已有项目",
       dataIndex: "existing_projects",
       key: "existing_projects",
+      width: 200,
       render: (val: string) => {
         if (!val) return <Text type="secondary">—</Text>;
         const projects = val.split(",").map((s) => s.trim()).filter(Boolean);
+        // 单个值超过 30 字符说明是长描述文本，截断显示
+        if (projects.length === 1 && projects[0].length > 30) {
+          return (
+            <Tooltip title={projects[0]}>
+              <Text style={{ fontSize: 12 }}>{projects[0].slice(0, 30)}…</Text>
+            </Tooltip>
+          );
+        }
         return (
           <Space wrap size={4}>
-            {projects.map((p) => (
-              <Tag key={p} color="cyan" style={{ fontSize: 12 }}>
-                {p}
+            {projects.slice(0, 3).map((p) => (
+              <Tag key={p} color="cyan" style={{ fontSize: 12, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {p.length > 15 ? p.slice(0, 15) + "…" : p}
               </Tag>
             ))}
+            {projects.length > 3 && <Text type="secondary" style={{ fontSize: 12 }}>+{projects.length - 3}</Text>}
           </Space>
         );
       },
