@@ -20,6 +20,7 @@ func SetupRouter(r *gin.Engine) {
 		auth.POST("/users", controllers.CreateUser)
 		auth.GET("/users/:id", controllers.GetUser)
 		auth.GET("/users/:id/activity", controllers.GetUserActivity)
+		auth.POST("/users/:id/sync-web3insight", controllers.SyncUserWeb3Insight)
 
 		auth.GET("/projects", controllers.QueryProjects)
 		auth.POST("/projects", controllers.CreateProject)

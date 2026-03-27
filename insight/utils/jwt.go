@@ -8,9 +8,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// JWT 密钥
-var jwtSecret = viper.GetString("jwt.secret")
-
 // 结构体定义 JWT 负载
 type Claims struct {
 	Uid      uint   `json:"uid"`
@@ -36,14 +33,16 @@ func GenerateToken(uid uint, email, avatar, username, github string, permissions
 		},
 	}
 
+	secret := viper.GetString("jwt.secret")
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(jwtSecret)) // 生成 Token
+	return token.SignedString([]byte(secret)) // 生成 Token
 }
 
 // 解析 JWT 令牌
 func ParseToken(tokenString string) (*Claims, error) {
+	secret := viper.GetString("jwt.secret")
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
+		return []byte(secret), nil
 	})
 
 	if err != nil || !token.Valid {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"insight/models"
 	"insight/utils"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -170,6 +171,7 @@ func ImportCSV(c *gin.Context) {
 
 	created := 0
 	merged := 0
+	var githubLogins []string
 
 	for _, row := range rows {
 		email := getValue(row, "email")
@@ -251,11 +253,29 @@ func ImportCSV(c *gin.Context) {
 			ExtraData: extraJSON,
 		}
 		models.CreateActivityRecord(&record)
+
+		if github != "" {
+			githubLogins = append(githubLogins, github)
+		}
+	}
+
+	// Async trigger Web3Insight analysis for all imported users with GitHub accounts
+	web3insightTriggered := len(githubLogins) > 0
+	if web3insightTriggered {
+		go func(logins []string) {
+			taskID, err := utils.TriggerWeb3InsightAnalysis(logins)
+			if err != nil {
+				log.Printf("Web3Insight analysis trigger failed: %v", err)
+			} else {
+				log.Printf("Web3Insight analysis triggered, task_id: %s", taskID)
+			}
+		}(githubLogins)
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Import complete", gin.H{
-		"created": created,
-		"merged":  merged,
+		"created":               created,
+		"merged":                merged,
+		"web3insight_triggered": web3insightTriggered,
 	})
 }
 

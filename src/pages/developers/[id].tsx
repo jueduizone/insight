@@ -25,6 +25,7 @@ import {
   GithubOutlined,
   UserOutlined,
   PlusOutlined,
+  SyncOutlined,
   TwitterOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
@@ -58,6 +59,9 @@ interface GithubStats {
   active_repos?: number;
   languages?: string[];
   weekly_activity?: number;
+  score?: number;
+  rank?: number;
+  eco_contributions?: number;
 }
 
 interface ActivityEvent {
@@ -104,6 +108,8 @@ export default function DeveloperDetailPage() {
   const [activityLoading, setActivityLoading] = useState(true);
   const [logs, setLogs] = useState<OperationLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
+
+  const [syncing, setSyncing] = useState(false);
 
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [logSubmitting, setLogSubmitting] = useState(false);
@@ -155,6 +161,28 @@ export default function DeveloperDetailPage() {
       setLogsLoading(false);
     }
   }
+
+  const handleSyncWeb3Insight = async () => {
+    if (!id) return;
+    const uid = Array.isArray(id) ? id[0] : id;
+    setSyncing(true);
+    try {
+      const res = await apiFetch(`/v1/users/${uid}/sync-web3insight`, {
+        method: "POST",
+      });
+      if (res.code === 200) {
+        message.success("Web3Insight 数据同步成功");
+        // Re-fetch user so github_stats reflects the newly saved data
+        fetchUser(uid);
+      } else {
+        message.error(res.message || "同步失败");
+      }
+    } catch {
+      message.error("同步失败");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleAddLog = async (values: { content: string }) => {
     if (!id) return;
@@ -396,9 +424,42 @@ export default function DeveloperDetailPage() {
                   title="Web3Insight 数据"
                   size="small"
                   style={{ borderRadius: 12, height: "100%" }}
+                  extra={
+                    user.github ? (
+                      <Button
+                        size="small"
+                        icon={<SyncOutlined spin={syncing} />}
+                        loading={syncing}
+                        onClick={handleSyncWeb3Insight}
+                        style={{ color: "#7c3aed", borderColor: "#7c3aed" }}
+                      >
+                        同步
+                      </Button>
+                    ) : null
+                  }
                 >
                   {githubStats ? (
                     <Space direction="vertical" style={{ width: "100%" }}>
+                      {githubStats.score !== undefined && (
+                        <div>
+                          <Text type="secondary">综合评分：</Text>
+                          <Text strong style={{ color: "#7c3aed" }}>
+                            {githubStats.score}
+                          </Text>
+                        </div>
+                      )}
+                      {githubStats.rank !== undefined && (
+                        <div>
+                          <Text type="secondary">生态排名：</Text>
+                          <Text strong>#{githubStats.rank}</Text>
+                        </div>
+                      )}
+                      {githubStats.eco_contributions !== undefined && (
+                        <div>
+                          <Text type="secondary">生态贡献：</Text>
+                          <Text strong>{githubStats.eco_contributions}</Text>
+                        </div>
+                      )}
                       {githubStats.total_commits !== undefined && (
                         <div>
                           <Text type="secondary">总提交数：</Text>
@@ -419,7 +480,10 @@ export default function DeveloperDetailPage() {
                       )}
                       {(githubStats.languages?.length ?? 0) > 0 && (
                         <div>
-                          <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
+                          <Text
+                            type="secondary"
+                            style={{ display: "block", marginBottom: 4 }}
+                          >
                             编程语言：
                           </Text>
                           <Space wrap size={4}>
@@ -435,6 +499,19 @@ export default function DeveloperDetailPage() {
                   ) : (
                     <div style={{ textAlign: "center", padding: "20px 0" }}>
                       <Text type="secondary">暂无数据，待采集</Text>
+                      {user.github && (
+                        <div style={{ marginTop: 12 }}>
+                          <Button
+                            size="small"
+                            icon={<SyncOutlined />}
+                            loading={syncing}
+                            onClick={handleSyncWeb3Insight}
+                            style={{ color: "#7c3aed", borderColor: "#7c3aed" }}
+                          >
+                            立即同步
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </Card>
