@@ -281,7 +281,7 @@ export default function ActivitiesPage() {
   const openEdit = (event: ActivityEvent) => {
     setEditingEvent(event);
     const toDatetimeLocal = (iso: string) => {
-      if (!iso || iso === "0001-01-01T00:00:00Z") return "";
+      if (!iso || iso.startsWith("0001-")) return "";
       return new Date(iso).toISOString().slice(0, 16);
     };
     editForm.setFieldsValue({
@@ -409,7 +409,7 @@ export default function ActivitiesPage() {
       dataIndex: "start_date",
       key: "start_date",
       render: (d: string) =>
-        d && d !== "0001-01-01T00:00:00Z"
+        d && !d.startsWith("0001-")
           ? new Date(d).toLocaleDateString("zh-CN")
           : "—",
     },
@@ -418,7 +418,7 @@ export default function ActivitiesPage() {
       dataIndex: "end_date",
       key: "end_date",
       render: (d: string) =>
-        d && d !== "0001-01-01T00:00:00Z"
+        d && !d.startsWith("0001-")
           ? new Date(d).toLocaleDateString("zh-CN")
           : "—",
     },
