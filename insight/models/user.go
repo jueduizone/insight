@@ -35,7 +35,7 @@ type User struct {
 	GithubStats       []byte         `gorm:"type:jsonb" json:"github_stats"`
 	TwitterStats      []byte         `gorm:"type:jsonb" json:"twitter_stats"`
 	Notes             string         `json:"notes"`
-	Role              string         `json:"role" gorm:"default:admin"`
+	Role              string         `json:"role" gorm:"default:member"`
 	PasswordHash      string         `json:"-"`
 	ActivityScore     int            `json:"activity_score"`
 	ProjectsRaw       string         `gorm:"column:projects_raw" json:"projects_raw"`

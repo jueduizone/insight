@@ -317,6 +317,10 @@ func ImportCSV(c *gin.Context) {
 			if monadExperience != "" {
 				existingUser.MonadExperience = monadExperience
 			}
+			// 确保 CSV 导入的用户 role 为 member（防止 GORM default:admin 污染）
+			if existingUser.Role != "admin" && existingUser.Role != "super_admin" {
+				existingUser.Role = "member"
+			}
 			models.UpdateUser(existingUser)
 			userID = existingUser.ID
 			merged++
