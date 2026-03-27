@@ -17,6 +17,7 @@ import {
   Card,
   Result,
   Divider,
+  Badge,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -31,6 +32,10 @@ import {
   CalendarOutlined,
   CheckCircleOutlined,
   SyncOutlined,
+  DownloadOutlined,
+  GithubOutlined,
+  TwitterOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch, API_BASE } from "@/lib/api";
@@ -54,12 +59,12 @@ interface User {
   existing_projects?: string;
   projects_raw?: string;
   projects_cleaned?: boolean;
-  wallet_address: string;
   web3insight_id: string;
   tags: string[] | null;
   group: string;
   notes: string;
   role: string;
+  activity_score: number;
 }
 
 interface UserListData {
@@ -126,6 +131,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 type ImportStep = "upload" | "preview" | "result";
+type GithubFilter = "all" | "has" | "none";
 
 export default function DevelopersPage() {
   const router = useRouter();
@@ -134,6 +140,8 @@ export default function DevelopersPage() {
   const [search, setSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string>("All");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [githubFilter, setGithubFilter] = useState<GithubFilter>("all");
+  const [activityRange, setActivityRange] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Create developer modal
@@ -349,9 +357,22 @@ export default function DevelopersPage() {
       const matchTag =
         !selectedTag || (u.tags || []).includes(selectedTag);
 
-      return matchSearch && matchGroup && matchTag;
+      const matchGithub =
+        githubFilter === "all" ||
+        (githubFilter === "has" && !!u.github) ||
+        (githubFilter === "none" && !u.github);
+
+      const score = u.activity_score || 0;
+      const matchActivity =
+        activityRange === "all" ||
+        (activityRange === "0" && score === 0) ||
+        (activityRange === "1-30" && score >= 1 && score <= 30) ||
+        (activityRange === "31-60" && score >= 31 && score <= 60) ||
+        (activityRange === "61+" && score > 60);
+
+      return matchSearch && matchGroup && matchTag && matchGithub && matchActivity;
     });
-  }, [users, search, selectedGroup, selectedTag]);
+  }, [users, search, selectedGroup, selectedTag, githubFilter, activityRange]);
 
   const handleCreate = async (values: {
     email: string;
@@ -405,6 +426,30 @@ export default function DevelopersPage() {
     } finally {
       setLogLoading(false);
     }
+  };
+
+  const handleExportCSV = () => {
+    const headers = ["姓名", "邮箱", "GitHub", "Twitter", "Telegram", "活跃度", "标签", "分组"];
+    const rows = filteredUsers.map((u) => [
+      u.username || "",
+      u.email || "",
+      u.github || "",
+      u.twitter || "",
+      u.telegram || u.wechat || "",
+      String(u.activity_score || 0),
+      (u.tags || []).join("|"),
+      u.group || "",
+    ]);
+    const content = [headers, ...rows]
+      .map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\ufeff" + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `developers_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Preview table
@@ -517,19 +562,43 @@ export default function DevelopersPage() {
         ),
     },
     {
-      title: "钱包地址",
-      dataIndex: "wallet_address",
-      key: "wallet_address",
-      render: (addr: string) =>
-        addr ? (
-          <Tooltip title={addr}>
-            <Text style={{ fontSize: 12 }}>
-              {addr.slice(0, 6)}…{addr.slice(-4)}
-            </Text>
+      title: "联系方式",
+      key: "contact",
+      width: 110,
+      render: (_: unknown, record: User) => (
+        <Space size={10}>
+          <Tooltip title={record.github ? `GitHub: ${record.github}` : "无 GitHub"}>
+            <GithubOutlined
+              style={{
+                color: record.github ? "#22c55e" : "#d1d5db",
+                fontSize: 16,
+              }}
+            />
           </Tooltip>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
+          <Tooltip title={record.twitter ? `Twitter: @${record.twitter}` : "无 Twitter"}>
+            <TwitterOutlined
+              style={{
+                color: record.twitter ? "#22c55e" : "#d1d5db",
+                fontSize: 16,
+              }}
+            />
+          </Tooltip>
+          <Tooltip
+            title={
+              record.telegram || record.wechat
+                ? `IM: ${record.telegram || record.wechat}`
+                : "无即时通讯"
+            }
+          >
+            <MessageOutlined
+              style={{
+                color: record.telegram || record.wechat ? "#22c55e" : "#d1d5db",
+                fontSize: 16,
+              }}
+            />
+          </Tooltip>
+        </Space>
+      ),
     },
     {
       title: "标签",
@@ -543,7 +612,11 @@ export default function DevelopersPage() {
               {t}
             </Tag>
           ))}
-          {(tags || []).length > 3 && <Text type="secondary" style={{ fontSize: 12 }}>+{(tags || []).length - 3}</Text>}
+          {(tags || []).length > 3 && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              +{(tags || []).length - 3}
+            </Text>
+          )}
         </Space>
       ),
     },
@@ -552,7 +625,6 @@ export default function DevelopersPage() {
       key: "existing_projects",
       width: 200,
       render: (_: unknown, record: User) => {
-        // Cleaning in progress: show spinner + truncated raw text
         if (record.projects_cleaned === false && record.projects_raw) {
           return (
             <Space size={4}>
@@ -571,11 +643,25 @@ export default function DevelopersPage() {
         return (
           <Space wrap size={4}>
             {projects.slice(0, 3).map((p) => (
-              <Tag key={p} color="cyan" style={{ fontSize: 12, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <Tag
+                key={p}
+                color="cyan"
+                style={{
+                  fontSize: 12,
+                  maxWidth: 120,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {p.length > 15 ? p.slice(0, 15) + "…" : p}
               </Tag>
             ))}
-            {projects.length > 3 && <Text type="secondary" style={{ fontSize: 12 }}>+{projects.length - 3}</Text>}
+            {projects.length > 3 && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                +{projects.length - 3}
+              </Text>
+            )}
           </Space>
         );
       },
@@ -590,8 +676,17 @@ export default function DevelopersPage() {
     {
       title: "活跃度分",
       key: "activity",
-      width: 90,
-      render: () => <Text type="secondary">—</Text>,
+      width: 100,
+      sorter: (a: User, b: User) => (a.activity_score || 0) - (b.activity_score || 0),
+      render: (_: unknown, record: User) => {
+        const score = record.activity_score || 0;
+        if (score === 0) {
+          return <Badge status="default" text="0" />;
+        }
+        const status: "processing" | "warning" | "success" =
+          score >= 61 ? "success" : score >= 31 ? "warning" : "processing";
+        return <Badge status={status} text={String(score)} />;
+      },
     },
     {
       title: "操作",
@@ -649,6 +744,12 @@ export default function DevelopersPage() {
           </Title>
           <Space>
             <Button
+              icon={<DownloadOutlined />}
+              onClick={handleExportCSV}
+            >
+              导出 CSV
+            </Button>
+            <Button
               icon={<UploadOutlined />}
               onClick={openImportModal}
             >
@@ -667,17 +768,45 @@ export default function DevelopersPage() {
 
         {/* Search & filter */}
         <div style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="搜索姓名 / 邮箱 / GitHub"
-            prefix={<SearchOutlined />}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            style={{ width: 300, marginBottom: 12 }}
-            allowClear
-          />
+          <Space wrap style={{ marginBottom: 12 }}>
+            <Input
+              placeholder="搜索姓名 / 邮箱 / GitHub"
+              prefix={<SearchOutlined />}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ width: 280 }}
+              allowClear
+            />
+            <Select
+              value={githubFilter}
+              onChange={(val: GithubFilter) => {
+                setGithubFilter(val);
+                setCurrentPage(1);
+              }}
+              style={{ width: 140 }}
+            >
+              <Option value="all">全部 GitHub</Option>
+              <Option value="has">有 GitHub</Option>
+              <Option value="none">无 GitHub</Option>
+            </Select>
+            <Select
+              value={activityRange}
+              onChange={(val: string) => {
+                setActivityRange(val);
+                setCurrentPage(1);
+              }}
+              style={{ width: 160 }}
+            >
+              <Option value="all">全部活跃度</Option>
+              <Option value="0">未活跃 (0)</Option>
+              <Option value="1-30">低活跃 (1-30)</Option>
+              <Option value="31-60">中活跃 (31-60)</Option>
+              <Option value="61+">高活跃 (61+)</Option>
+            </Select>
+          </Space>
           <div style={{ marginBottom: 8 }}>
             <Text type="secondary" style={{ marginRight: 8 }}>
               分组：
@@ -875,7 +1004,12 @@ export default function DevelopersPage() {
               disabled={uploading || !selectedEvent}
             >
               <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ color: selectedEvent ? "#7c3aed" : "#d9d9d9", fontSize: 48 }} />
+                <InboxOutlined
+                  style={{
+                    color: selectedEvent ? "#7c3aed" : "#d9d9d9",
+                    fontSize: 48,
+                  }}
+                />
               </p>
               <p className="ant-upload-text">
                 {selectedEvent ? "点击或拖拽 CSV 文件到此区域" : "请先选择活动"}

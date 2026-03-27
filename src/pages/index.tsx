@@ -11,9 +11,15 @@ import {
   List,
   Spin,
   Badge,
+  Button,
+  Modal,
+  Progress,
+  Table,
+  message,
 } from "antd";
-import { Column } from "@ant-design/plots";
-import { UserOutlined, GithubOutlined } from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
+import { Column, Line } from "@ant-design/plots";
+import { UserOutlined, GithubOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
 import { apiFetch } from "@/lib/api";
@@ -71,13 +77,56 @@ interface ScoreBucket {
   count: number;
 }
 
+interface EventFunnelItem {
+  event_id: number;
+  event_name: string;
+  event_type: string;
+  platform: string;
+  count: number;
+}
+
+interface DailyTrend {
+  date: string;
+  count: number;
+}
+
+interface WeeklyReportData {
+  period: { start: string; end: string; days: number };
+  summary: {
+    total_users: number;
+    new_users: number;
+    active_users: number;
+    total_events: number;
+    total_records: number;
+  };
+  event_funnel: EventFunnelItem[];
+  retention: { period: string; total: number; active: number; rate: number }[];
+  contact_coverage: {
+    github_count: number;
+    twitter_count: number;
+    telegram_count: number;
+    total_users: number;
+    github_pct: number;
+    twitter_pct: number;
+    telegram_pct: number;
+  };
+  activity_distribution: ScoreBucket[];
+  new_users_trend: DailyTrend[];
+}
+
 export default function Home() {
   const router = useRouter();
 
   const [users, setUsers] = useState<User[]>([]);
   const [recentEvents, setRecentEvents] = useState<ActivityEvent[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
+  const [weeklyReport, setWeeklyReport] = useState<WeeklyReportData | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // Generate report modal
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportContent, setReportContent] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
 
   useEffect(() => {
     fetchAll();
@@ -86,10 +135,11 @@ export default function Home() {
   async function fetchAll() {
     setStatsLoading(true);
     try {
-      const [usersRes, eventsRes, statsRes] = await Promise.all([
+      const [usersRes, eventsRes, statsRes, reportRes] = await Promise.all([
         apiFetch<UserListData>("/v1/users?page=1&page_size=500"),
         apiFetch<EventsData>("/v1/events?page=1&page_size=5"),
         apiFetch<StatsData>("/v1/stats"),
+        apiFetch<WeeklyReportData>("/v1/reports/weekly"),
       ]);
 
       if (usersRes.code === 200) {
@@ -101,6 +151,9 @@ export default function Home() {
       if (statsRes.code === 200) {
         setStats(statsRes.data);
       }
+      if (reportRes.code === 200) {
+        setWeeklyReport(reportRes.data);
+      }
     } catch {
       // ignore
     } finally {
@@ -108,8 +161,31 @@ export default function Home() {
     }
   }
 
-  // Activity score distribution buckets
+  async function handleGenerateReport() {
+    setReportLoading(true);
+    setReportContent("");
+    setReportOpen(true);
+    try {
+      const res = await apiFetch<{ report: string }>("/v1/reports/generate");
+      if (res.code === 200) {
+        setReportContent(res.data.report);
+      } else {
+        message.error(res.message || "生成失败");
+        setReportOpen(false);
+      }
+    } catch {
+      message.error("生成失败");
+      setReportOpen(false);
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  // Activity score distribution buckets (client-side fallback)
   const scoreBuckets: ScoreBucket[] = useMemo(() => {
+    if (weeklyReport?.activity_distribution?.length) {
+      return weeklyReport.activity_distribution;
+    }
     const buckets = [
       { range: "0", count: 0 },
       { range: "1-30", count: 0 },
@@ -124,7 +200,7 @@ export default function Home() {
       else buckets[3].count++;
     });
     return buckets;
-  }, [users]);
+  }, [users, weeklyReport]);
 
   // Warning list: activity_score = 0, joined > 30 days ago
   const warningDevs = useMemo(() => {
@@ -160,6 +236,15 @@ export default function Home() {
     yAxis: { title: { text: "人数" } },
   };
 
+  const lineConfig = {
+    data: weeklyReport?.new_users_trend ?? [],
+    xField: "date",
+    yField: "count",
+    color: "#7c3aed",
+    point: { size: 3, shape: "circle" },
+    smooth: true,
+  };
+
   const statCards = [
     {
       title: "总开发者数",
@@ -193,9 +278,72 @@ export default function Home() {
     },
   ];
 
+  const funnelColumns: ColumnsType<EventFunnelItem> = [
+    {
+      title: "活动名称",
+      dataIndex: "event_name",
+      key: "event_name",
+      render: (name: string) => <Text strong>{name || "—"}</Text>,
+    },
+    {
+      title: "类型",
+      dataIndex: "event_type",
+      key: "event_type",
+      render: (type: string) =>
+        type ? (
+          <Tag color="purple" style={{ fontSize: 11 }}>
+            {type}
+          </Tag>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
+    },
+    {
+      title: "平台",
+      dataIndex: "platform",
+      key: "platform",
+      render: (platform: string) => platform || <Text type="secondary">—</Text>,
+    },
+    {
+      title: "参与人数",
+      dataIndex: "count",
+      key: "count",
+      sorter: (a: EventFunnelItem, b: EventFunnelItem) => a.count - b.count,
+      render: (count: number) => (
+        <Text strong style={{ color: "#7c3aed" }}>
+          {count}
+        </Text>
+      ),
+    },
+  ];
+
+  const coverage = weeklyReport?.contact_coverage;
+
   return (
     <Layout>
       <div>
+        {/* Page header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 20,
+          }}
+        >
+          <Text strong style={{ fontSize: 18 }}>
+            运营看板
+          </Text>
+          <Button
+            type="primary"
+            icon={<FileTextOutlined />}
+            style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+            onClick={handleGenerateReport}
+          >
+            生成周报
+          </Button>
+        </div>
+
         {/* Stat Cards */}
         <Spin spinning={statsLoading}>
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
@@ -212,6 +360,64 @@ export default function Home() {
             ))}
           </Row>
         </Spin>
+
+        {/* New users trend + Contact coverage */}
+        <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
+          <Col xs={24} lg={16}>
+            <Card title="新增开发者趋势（最近30天）" style={CARD_STYLE}>
+              <Spin spinning={statsLoading}>
+                {(weeklyReport?.new_users_trend?.length ?? 0) === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px 0" }}>
+                    <Text type="secondary">暂无趋势数据</Text>
+                  </div>
+                ) : (
+                  <Line {...lineConfig} height={200} />
+                )}
+              </Spin>
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card title="联系方式覆盖率" style={CARD_STYLE}>
+              <Spin spinning={statsLoading}>
+                <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <Text>GitHub</Text>
+                      <Text strong>{coverage?.github_pct?.toFixed(1) ?? "0.0"}%</Text>
+                    </div>
+                    <Progress
+                      percent={Math.round(coverage?.github_pct ?? 0)}
+                      strokeColor="#7c3aed"
+                      showInfo={false}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <Text>Twitter</Text>
+                      <Text strong>{coverage?.twitter_pct?.toFixed(1) ?? "0.0"}%</Text>
+                    </div>
+                    <Progress
+                      percent={Math.round(coverage?.twitter_pct ?? 0)}
+                      strokeColor="#a78bfa"
+                      showInfo={false}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <Text>Telegram / 微信</Text>
+                      <Text strong>{coverage?.telegram_pct?.toFixed(1) ?? "0.0"}%</Text>
+                    </div>
+                    <Progress
+                      percent={Math.round(coverage?.telegram_pct ?? 0)}
+                      strokeColor="#6d28d9"
+                      showInfo={false}
+                    />
+                  </div>
+                </Space>
+              </Spin>
+            </Card>
+          </Col>
+        </Row>
 
         {/* Middle Row: Chart + Warning + Events */}
         <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
@@ -323,6 +529,22 @@ export default function Home() {
           </Col>
         </Row>
 
+        {/* Event Funnel Table */}
+        <Card
+          title="活动效果（参与人数）"
+          style={{ ...CARD_STYLE, height: "auto", marginBottom: 24 }}
+        >
+          <Spin spinning={statsLoading}>
+            <Table<EventFunnelItem>
+              columns={funnelColumns}
+              dataSource={weeklyReport?.event_funnel ?? []}
+              rowKey="event_id"
+              size="small"
+              pagination={{ pageSize: 5, showSizeChanger: false }}
+            />
+          </Spin>
+        </Card>
+
         {/* Bottom: Activity TOP 10 */}
         <Card
           title={`活跃度 TOP ${top10.length} 开发者`}
@@ -402,6 +624,47 @@ export default function Home() {
           </Spin>
         </Card>
       </div>
+
+      {/* Generate Report Modal */}
+      <Modal
+        title="AI 周报"
+        open={reportOpen}
+        onCancel={() => setReportOpen(false)}
+        footer={[
+          <Button
+            key="copy"
+            disabled={!reportContent}
+            onClick={() => {
+              navigator.clipboard.writeText(reportContent);
+              message.success("已复制到剪贴板");
+            }}
+          >
+            复制
+          </Button>,
+          <Button key="close" type="primary" style={{ background: "#7c3aed", borderColor: "#7c3aed" }} onClick={() => setReportOpen(false)}>
+            关闭
+          </Button>,
+        ]}
+        width={600}
+      >
+        {reportLoading ? (
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <Spin tip="AI 生成中..." />
+          </div>
+        ) : (
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontFamily: "inherit",
+              lineHeight: 1.8,
+              margin: 0,
+            }}
+          >
+            {reportContent}
+          </pre>
+        )}
+      </Modal>
     </Layout>
   );
 }

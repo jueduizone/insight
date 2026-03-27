@@ -46,5 +46,8 @@ func SetupRouter(r *gin.Engine) {
 		auth.GET("/stats", controllers.GetStats)
 
 		auth.POST("/suggest-mapping", controllers.SuggestFieldMapping)
+
+		auth.GET("/reports/weekly", controllers.GetWeeklyReport)
+		auth.GET("/reports/generate", controllers.GenerateReport)
 	}
 }
