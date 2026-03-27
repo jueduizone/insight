@@ -118,3 +118,17 @@ func GetUserByWalletAddress(wallet string) (*User, error) {
 	}
 	return &u, nil
 }
+
+func UpdateActivityEvent(event *ActivityEvent) error {
+	return db.Save(event).Error
+}
+
+func DeleteActivityEvent(id uint) error {
+	return db.Delete(&ActivityEvent{}, id).Error
+}
+
+func GetActivityRecordCountByEventID(eventID uint) (int64, error) {
+	var count int64
+	err := db.Model(&ActivityRecord{}).Where("event_id = ?", eventID).Count(&count).Error
+	return count, err
+}

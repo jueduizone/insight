@@ -77,6 +77,79 @@ func GetEvent(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Success", event)
 }
 
+// UpdateEvent PUT /v1/events/:id
+func UpdateEvent(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid ID", nil)
+		return
+	}
+
+	event, err := models.GetActivityEventByID(uint(id))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "Event not found", nil)
+		return
+	}
+
+	var req UpdateEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters", err.Error())
+		return
+	}
+
+	if req.Name != "" {
+		event.Name = req.Name
+	}
+	event.Type = req.Type
+	event.Platform = req.Platform
+	event.Description = req.Description
+	if !req.StartDate.IsZero() {
+		event.StartDate = req.StartDate
+	}
+	if !req.EndDate.IsZero() {
+		event.EndDate = req.EndDate
+	}
+
+	if err := models.UpdateActivityEvent(event); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to update event", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Event updated", event)
+}
+
+// DeleteEvent DELETE /v1/events/:id
+func DeleteEvent(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid ID", nil)
+		return
+	}
+
+	_, err = models.GetActivityEventByID(uint(id))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "Event not found", nil)
+		return
+	}
+
+	count, err := models.GetActivityRecordCountByEventID(uint(id))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to check records", err.Error())
+		return
+	}
+	if count > 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "该活动已有参与者记录，无法删除", nil)
+		return
+	}
+
+	if err := models.DeleteActivityEvent(uint(id)); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete event", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Event deleted", nil)
+}
+
 // ImportCSV POST /v1/events/:id/import
 // mode=preview: parse CSV, return columns + first 5 rows (no DB write)
 // mode=import:  import with field_mapping JSON

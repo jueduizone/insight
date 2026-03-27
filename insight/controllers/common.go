@@ -125,6 +125,15 @@ type CreateEventRequest struct {
 	Description string    `json:"description"`
 }
 
+type UpdateEventRequest struct {
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Platform    string    `json:"platform"`
+	StartDate   time.Time `json:"start_date"`
+	EndDate     time.Time `json:"end_date"`
+	Description string    `json:"description"`
+}
+
 // OperationLog
 type CreateLogRequest struct {
 	TargetType string `json:"target_type" binding:"required"`

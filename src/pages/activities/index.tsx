@@ -21,6 +21,8 @@ import {
   InboxOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch, API_BASE } from "@/lib/api";
@@ -87,6 +89,12 @@ export default function ActivitiesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm] = Form.useForm();
+
+  // Edit event modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<ActivityEvent | null>(null);
+  const [editForm] = Form.useForm();
 
   // Import modal
   const [importOpen, setImportOpen] = useState(false);
@@ -262,6 +270,82 @@ export default function ActivitiesPage() {
     }
   };
 
+  const openEdit = (event: ActivityEvent) => {
+    setEditingEvent(event);
+    const toDatetimeLocal = (iso: string) => {
+      if (!iso || iso === "0001-01-01T00:00:00Z") return "";
+      return new Date(iso).toISOString().slice(0, 16);
+    };
+    editForm.setFieldsValue({
+      name: event.name,
+      type: event.type || undefined,
+      platform: event.platform || undefined,
+      description: event.description,
+      start_date: toDatetimeLocal(event.start_date),
+      end_date: toDatetimeLocal(event.end_date),
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditEvent = async (values: Record<string, unknown>) => {
+    if (!editingEvent) return;
+    setEditLoading(true);
+    try {
+      const res = await apiFetch(`/v1/events/${editingEvent.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: values.name,
+          type: values.type ?? "",
+          platform: values.platform ?? "",
+          description: values.description,
+          start_date: values.start_date
+            ? new Date(values.start_date as string).toISOString()
+            : null,
+          end_date: values.end_date
+            ? new Date(values.end_date as string).toISOString()
+            : null,
+        }),
+      });
+      if (res.code === 200) {
+        message.success("活动更新成功");
+        setEditOpen(false);
+        editForm.resetFields();
+        fetchEvents(currentPage);
+      } else {
+        message.error(res.message || "更新失败");
+      }
+    } catch {
+      message.error("更新失败");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = (event: ActivityEvent) => {
+    Modal.confirm({
+      title: "确认删除",
+      content: "删除后无法恢复，是否继续？",
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          const res = await apiFetch(`/v1/events/${event.id}`, {
+            method: "DELETE",
+          });
+          if (res.code === 200) {
+            message.success("活动已删除");
+            fetchEvents(currentPage);
+          } else {
+            message.error(res.message || "删除失败");
+          }
+        } catch {
+          message.error("删除失败");
+        }
+      },
+    });
+  };
+
   const closeImport = () => {
     setImportOpen(false);
     setSelectedEvent(null);
@@ -340,17 +424,30 @@ export default function ActivitiesPage() {
     {
       title: "操作",
       key: "action",
-      width: 100,
+      width: 180,
       render: (_: unknown, record: ActivityEvent) => (
-        <Button
-          size="small"
-          type="primary"
-          ghost
-          style={{ borderColor: "#7c3aed", color: "#7c3aed" }}
-          onClick={() => openImport(record)}
-        >
-          导入 CSV
-        </Button>
+        <Space size={4}>
+          <Button
+            size="small"
+            type="primary"
+            ghost
+            style={{ borderColor: "#7c3aed", color: "#7c3aed" }}
+            onClick={() => openImport(record)}
+          >
+            导入 CSV
+          </Button>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openEdit(record)}
+          />
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteEvent(record)}
+          />
+        </Space>
       ),
     },
   ];
@@ -454,6 +551,56 @@ export default function ActivitiesPage() {
         }}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateEvent}>
+          <Form.Item
+            name="name"
+            label="活动名称"
+            rules={[{ required: true, message: "请输入活动名称" }]}
+          >
+            <Input placeholder="Monad Hackathon 2025" />
+          </Form.Item>
+          <Form.Item name="type" label="类型">
+            <Select placeholder="请选择活动类型" allowClear>
+              <Option value="hackathon">Hackathon</Option>
+              <Option value="workshop">Workshop</Option>
+              <Option value="meetup">Meetup</Option>
+              <Option value="conference">Conference</Option>
+              <Option value="other">其他</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="platform" label="平台">
+            <Select placeholder="请选择平台" allowClear>
+              <Option value="online">线上</Option>
+              <Option value="offline">线下</Option>
+              <Option value="hybrid">混合</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="start_date" label="开始时间">
+            <Input type="datetime-local" />
+          </Form.Item>
+          <Form.Item name="end_date" label="结束时间">
+            <Input type="datetime-local" />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={3} placeholder="活动描述..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Event Modal */}
+      <Modal
+        title="编辑活动"
+        open={editOpen}
+        onCancel={() => {
+          setEditOpen(false);
+          editForm.resetFields();
+        }}
+        onOk={() => editForm.submit()}
+        confirmLoading={editLoading}
+        okButtonProps={{
+          style: { background: "#7c3aed", borderColor: "#7c3aed" },
+        }}
+      >
+        <Form form={editForm} layout="vertical" onFinish={handleEditEvent}>
           <Form.Item
             name="name"
             label="活动名称"
