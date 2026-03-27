@@ -44,5 +44,7 @@ func SetupRouter(r *gin.Engine) {
 		auth.GET("/operation-logs", controllers.GetLogs)
 
 		auth.GET("/stats", controllers.GetStats)
+
+		auth.POST("/suggest-mapping", controllers.SuggestFieldMapping)
 	}
 }

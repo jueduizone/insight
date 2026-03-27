@@ -156,6 +156,7 @@ export default function DevelopersPage() {
   const [uploading, setUploading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [aiMatching, setAiMatching] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -200,6 +201,7 @@ export default function DevelopersPage() {
     setPreviewData(null);
     setFieldMapping({});
     setImportResult(null);
+    setAiMatching(false);
     setImportOpen(true);
     fetchEvents();
   };
@@ -242,15 +244,9 @@ export default function DevelopersPage() {
 
       if (result.code === 200) {
         setPreviewData(result.data);
-        const autoMap: Record<string, string> = {};
-        SYSTEM_FIELDS.forEach((field) => {
-          const col = result.data.columns.find((c) =>
-            c.toLowerCase().replace(/[\s_-]/g, "").includes(field.replace("_", ""))
-          );
-          if (col) autoMap[field] = col;
-        });
-        setFieldMapping(autoMap);
+        setFieldMapping({});
         setImportStep("preview");
+        suggestMapping(result.data.columns);
       } else {
         message.error(result.message || "解析 CSV 失败");
       }
@@ -258,6 +254,23 @@ export default function DevelopersPage() {
       message.error("解析 CSV 失败");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const suggestMapping = async (columns: string[]) => {
+    setAiMatching(true);
+    try {
+      const res = await apiFetch<Record<string, string>>("/v1/suggest-mapping", {
+        method: "POST",
+        body: JSON.stringify({ columns }),
+      });
+      if (res.code === 200 && res.data) {
+        setFieldMapping(res.data);
+      }
+    } catch {
+      // silently degrade — user can map manually
+    } finally {
+      setAiMatching(false);
     }
   };
 
@@ -884,7 +897,7 @@ export default function DevelopersPage() {
 
             <Text strong>字段映射配置</Text>
             <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-              将 CSV 列映射到系统字段（留空则忽略该字段）
+              {aiMatching ? "AI 智能匹配中..." : "已由 AI 自动匹配，可手动调整"}
             </Text>
             <div
               style={{

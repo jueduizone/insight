@@ -12,22 +12,16 @@ import (
 const zenmuxURL = "https://zenmux.ai/api/v1/chat/completions"
 const zenmuxToken = "sk-ss-v1-196d706809b60c6ccf68e30afa1a711ce1b834674822781bd972b3885ab640e0"
 
-// GenerateProfile calls Zenmux/Kimi API to generate a developer profile.
-func GenerateProfile(prompt string) (string, error) {
+// CallKimi calls the Zenmux/Kimi API with the given system and user prompts.
+func CallKimi(systemPrompt, userPrompt string) (string, error) {
 	body, err := json.Marshal(map[string]interface{}{
 		"model": "moonshot/kimi-k2.5",
 		"messages": []map[string]string{
-			{
-				"role":    "system",
-				"content": "你是 Monad 生态运营助手，根据开发者的活动参与信息生成简洁的开发者画像，用中文，100-200字，重点描述：技术背景、参与活动情况、已有项目、对 Monad/Web3 的兴趣方向。",
-			},
-			{
-				"role":    "user",
-				"content": prompt,
-			},
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPrompt},
 		},
 		"max_tokens":  500,
-		"temperature": 0.7,
+		"temperature": 0.3,
 	})
 	if err != nil {
 		return "", err
@@ -79,4 +73,12 @@ func GenerateProfile(prompt string) (string, error) {
 	}
 
 	return content, nil
+}
+
+// GenerateProfile calls Zenmux/Kimi API to generate a developer profile.
+func GenerateProfile(prompt string) (string, error) {
+	return CallKimi(
+		"你是 Monad 生态运营助手，根据开发者的活动参与信息生成简洁的开发者画像，用中文，100-200字，重点描述：技术背景、参与活动情况、已有项目、对 Monad/Web3 的兴趣方向。",
+		prompt,
+	)
 }

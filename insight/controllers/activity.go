@@ -423,6 +423,62 @@ func GetEventRecords(c *gin.Context) {
 	})
 }
 
+// SuggestFieldMapping POST /v1/suggest-mapping
+func SuggestFieldMapping(c *gin.Context) {
+	var req SuggestMappingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+	if len(req.Columns) == 0 {
+		utils.ErrorResponse(c, http.StatusBadRequest, "columns is required", nil)
+		return
+	}
+
+	columnsJSON, _ := json.Marshal(req.Columns)
+	systemPrompt := `你是一个数据导入助手。请将 CSV 文件的列名映射到以下系统字段。
+
+系统字段说明：
+- email: 邮箱地址（主键，用于去重）
+- last_name: 姓
+- first_name: 名
+- username: 完整姓名
+- github: GitHub 用户名或链接
+- wallet_address: 钱包地址（0x开头）
+- twitter: Twitter/X 用户名
+- wechat: 微信号
+- telegram: Telegram 用户名
+- existing_projects: 已有项目名称
+- intro: 个人简介/描述
+- monad_experience: Monad/Web3 经验描述
+- award: 获奖情况
+- role: 参与角色
+- status: 参与状态`
+	userPrompt := "CSV 列名：" + string(columnsJSON) + "\n\n请返回 JSON 格式，key 是系统字段名，value 是对应的 CSV 列名（找不到对应列就不包含该字段）。只返回 JSON，不要其他文字。"
+
+	content, err := utils.CallKimi(systemPrompt, userPrompt)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "AI service error", err.Error())
+		return
+	}
+
+	// Extract JSON from response (AI might wrap in ```json ... ```)
+	jsonStr := content
+	if idx := strings.Index(content, "{"); idx >= 0 {
+		if end := strings.LastIndex(content, "}"); end > idx {
+			jsonStr = content[idx : end+1]
+		}
+	}
+
+	var mapping map[string]string
+	if err := json.Unmarshal([]byte(jsonStr), &mapping); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to parse AI response", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Success", mapping)
+}
+
 // GetUserActivity GET /v1/users/:id/activity
 func GetUserActivity(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))

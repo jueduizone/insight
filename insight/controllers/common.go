@@ -139,6 +139,11 @@ type ChangePasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required"`
 }
 
+// SuggestMapping
+type SuggestMappingRequest struct {
+	Columns []string `json:"columns" binding:"required"`
+}
+
 // OperationLog
 type CreateLogRequest struct {
 	TargetType string `json:"target_type" binding:"required"`
