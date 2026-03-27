@@ -12,6 +12,11 @@ import {
   Modal,
   Form,
   Tooltip,
+  Upload,
+  Select,
+  Card,
+  Result,
+  Divider,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -22,11 +27,16 @@ import {
   EyeOutlined,
   EditOutlined,
   FileAddOutlined,
+  InboxOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_BASE } from "@/lib/api";
 
 const { Title, Text } = Typography;
+const { Dragger } = Upload;
+const { Option } = Select;
 
 interface User {
   ID: number;
@@ -53,6 +63,52 @@ interface UserListData {
   page_size: number;
 }
 
+interface ActivityEvent {
+  id: number;
+  name: string;
+  type: string;
+  platform: string;
+  start_date: string;
+}
+
+interface EventsData {
+  events: ActivityEvent[];
+  total: number;
+}
+
+interface PreviewData {
+  columns: string[];
+  rows: string[][];
+}
+
+interface ImportResult {
+  created: number;
+  merged: number;
+  web3insight_triggered?: boolean;
+}
+
+const SYSTEM_FIELDS = [
+  "email",
+  "username",
+  "github",
+  "wallet_address",
+  "award",
+  "role",
+  "status",
+] as const;
+
+const FIELD_LABELS: Record<string, string> = {
+  email: "邮箱",
+  username: "姓名",
+  github: "GitHub",
+  wallet_address: "钱包地址",
+  award: "获奖情况",
+  role: "角色",
+  status: "参与状态",
+};
+
+type ImportStep = "upload" | "preview" | "result";
+
 export default function DevelopersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
@@ -72,6 +128,19 @@ export default function DevelopersPage() {
   const [logUserId, setLogUserId] = useState<number | null>(null);
   const [logLoading, setLogLoading] = useState(false);
   const [logForm] = Form.useForm();
+
+  // CSV import modal
+  const [importOpen, setImportOpen] = useState(false);
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<ActivityEvent | null>(null);
+  const [importStep, setImportStep] = useState<ImportStep>("upload");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -94,6 +163,131 @@ export default function DevelopersPage() {
       setLoading(false);
     }
   }
+
+  async function fetchEvents() {
+    setEventsLoading(true);
+    try {
+      const res = await apiFetch<EventsData>("/v1/events?page=1&page_size=200");
+      if (res.code === 200) {
+        setEvents(res.data.events || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setEventsLoading(false);
+    }
+  }
+
+  const openImportModal = () => {
+    setImportStep("upload");
+    setSelectedEvent(null);
+    setCsvFile(null);
+    setPreviewData(null);
+    setFieldMapping({});
+    setImportResult(null);
+    setImportOpen(true);
+    fetchEvents();
+  };
+
+  const closeImport = () => {
+    setImportOpen(false);
+  };
+
+  const handlePreview = async (file: File) => {
+    if (!selectedEvent) {
+      message.warning("请先选择活动");
+      return;
+    }
+    setCsvFile(file);
+    setUploading(true);
+
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("insight_token")
+        : null;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("mode", "preview");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/v1/events/${selectedEvent.id}/import`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+          body: formData,
+        }
+      );
+      const result = (await response.json()) as {
+        code: number;
+        message: string;
+        data: PreviewData;
+      };
+
+      if (result.code === 200) {
+        setPreviewData(result.data);
+        const autoMap: Record<string, string> = {};
+        SYSTEM_FIELDS.forEach((field) => {
+          const col = result.data.columns.find((c) =>
+            c.toLowerCase().replace(/[\s_-]/g, "").includes(field.replace("_", ""))
+          );
+          if (col) autoMap[field] = col;
+        });
+        setFieldMapping(autoMap);
+        setImportStep("preview");
+      } else {
+        message.error(result.message || "解析 CSV 失败");
+      }
+    } catch {
+      message.error("解析 CSV 失败");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!selectedEvent || !csvFile) return;
+    setImporting(true);
+
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("insight_token")
+        : null;
+
+    const formData = new FormData();
+    formData.append("file", csvFile);
+    formData.append("mode", "import");
+    formData.append("field_mapping", JSON.stringify(fieldMapping));
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/v1/events/${selectedEvent.id}/import`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+          body: formData,
+        }
+      );
+      const result = (await response.json()) as {
+        code: number;
+        message: string;
+        data: ImportResult;
+      };
+
+      if (result.code === 200) {
+        setImportResult(result.data);
+        setImportStep("result");
+        fetchUsers();
+      } else {
+        message.error(result.message || "导入失败");
+      }
+    } catch {
+      message.error("导入失败");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // Derived: unique groups
   const groups = useMemo(() => {
@@ -180,6 +374,64 @@ export default function DevelopersPage() {
     } finally {
       setLogLoading(false);
     }
+  };
+
+  // Preview table
+  const previewTableData = (previewData?.rows ?? []).map((row, idx) => {
+    const obj: Record<string, string> & { _key: string } = { _key: String(idx) };
+    (previewData?.columns ?? []).forEach((col, i) => {
+      obj[`col_${i}`] = row[i] ?? "";
+    });
+    return obj;
+  });
+
+  const previewColumns: ColumnsType<Record<string, string>> = (
+    previewData?.columns ?? []
+  ).map((col, i) => ({
+    title: col,
+    dataIndex: `col_${i}`,
+    key: `col_${i}`,
+    ellipsis: true,
+    width: 140,
+  }));
+
+  const importFooter = () => {
+    if (importStep === "upload") {
+      return [
+        <Button key="cancel" onClick={closeImport}>
+          取消
+        </Button>,
+      ];
+    }
+    if (importStep === "preview") {
+      return [
+        <Button key="back" onClick={() => setImportStep("upload")}>
+          重新选择文件
+        </Button>,
+        <Button key="cancel" onClick={closeImport}>
+          取消
+        </Button>,
+        <Button
+          key="import"
+          type="primary"
+          loading={importing}
+          style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+          onClick={handleImport}
+        >
+          开始导入
+        </Button>,
+      ];
+    }
+    return [
+      <Button
+        key="close"
+        type="primary"
+        style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+        onClick={closeImport}
+      >
+        完成
+      </Button>,
+    ];
   };
 
   const columns: ColumnsType<User> = [
@@ -332,7 +584,7 @@ export default function DevelopersPage() {
           <Space>
             <Button
               icon={<UploadOutlined />}
-              onClick={() => message.info("CSV 导入功能开发中")}
+              onClick={openImportModal}
             >
               导入 CSV
             </Button>
@@ -495,6 +747,165 @@ export default function DevelopersPage() {
             <Input.TextArea rows={4} placeholder="请输入运营记录内容..." />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* CSV Import Modal */}
+      <Modal
+        title={
+          <Space>
+            <CalendarOutlined />
+            <span>
+              {importStep === "result"
+                ? "导入完成"
+                : "导入 CSV — 开发者名单"}
+            </span>
+          </Space>
+        }
+        open={importOpen}
+        onCancel={closeImport}
+        footer={importFooter()}
+        width={importStep === "preview" ? 900 : 520}
+        destroyOnClose
+      >
+        {/* Step 1: Select event + Upload */}
+        {importStep === "upload" && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+                请先选择关联活动，再上传 CSV 文件：
+              </Text>
+              <Select
+                placeholder="选择活动"
+                loading={eventsLoading}
+                value={selectedEvent?.id ?? undefined}
+                onChange={(val: number) => {
+                  const ev = events.find((e) => e.id === val) ?? null;
+                  setSelectedEvent(ev);
+                }}
+                style={{ width: "100%" }}
+                showSearch
+                optionFilterProp="children"
+              >
+                {events.map((ev) => (
+                  <Option key={ev.id} value={ev.id}>
+                    {ev.name}
+                    {ev.type && (
+                      <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                        [{ev.type}]
+                      </Text>
+                    )}
+                  </Option>
+                ))}
+              </Select>
+            </div>
+            <Dragger
+              accept=".csv"
+              multiple={false}
+              showUploadList={false}
+              beforeUpload={(file) => {
+                handlePreview(file);
+                return false;
+              }}
+              disabled={uploading || !selectedEvent}
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined style={{ color: selectedEvent ? "#7c3aed" : "#d9d9d9", fontSize: 48 }} />
+              </p>
+              <p className="ant-upload-text">
+                {selectedEvent ? "点击或拖拽 CSV 文件到此区域" : "请先选择活动"}
+              </p>
+              <p className="ant-upload-hint">
+                {uploading ? "正在解析..." : "仅支持 .csv 格式，最大 10MB"}
+              </p>
+            </Dragger>
+          </div>
+        )}
+
+        {/* Step 2: Preview + Field Mapping */}
+        {importStep === "preview" && previewData && (
+          <div>
+            <Text strong>数据预览（前 {previewData.rows.length} 行）</Text>
+            <Table
+              columns={previewColumns}
+              dataSource={previewTableData}
+              rowKey="_key"
+              pagination={false}
+              size="small"
+              scroll={{ x: "max-content" }}
+              style={{ marginTop: 8, marginBottom: 20 }}
+            />
+
+            <Divider />
+
+            <Text strong>字段映射配置</Text>
+            <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+              将 CSV 列映射到系统字段（留空则忽略该字段）
+            </Text>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px 24px",
+              }}
+            >
+              {SYSTEM_FIELDS.map((field) => (
+                <Card key={field} size="small" style={{ background: "#fafafa" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Text style={{ width: 90, flexShrink: 0 }}>
+                      {FIELD_LABELS[field]}
+                    </Text>
+                    <Select
+                      value={fieldMapping[field] ?? undefined}
+                      onChange={(val: string) =>
+                        setFieldMapping((prev) => ({ ...prev, [field]: val }))
+                      }
+                      onClear={() =>
+                        setFieldMapping((prev) => {
+                          const next = { ...prev };
+                          delete next[field];
+                          return next;
+                        })
+                      }
+                      placeholder="选择 CSV 列"
+                      allowClear
+                      style={{ flex: 1 }}
+                      size="small"
+                    >
+                      {previewData.columns.map((col) => (
+                        <Option key={col} value={col}>
+                          {col}
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Result */}
+        {importStep === "result" && importResult && (
+          <Result
+            icon={<CheckCircleOutlined style={{ color: "#7c3aed" }} />}
+            title="导入成功"
+            subTitle={
+              <Space direction="vertical">
+                <Text>
+                  新建开发者：<Text strong>{importResult.created}</Text> 人
+                </Text>
+                <Text>
+                  合并已有记录：<Text strong>{importResult.merged}</Text> 条
+                </Text>
+                {importResult.web3insight_triggered && (
+                  <Text type="secondary">
+                    已触发 Web3Insight 数据分析，稍后可在开发者详情中查看
+                  </Text>
+                )}
+              </Space>
+            }
+          />
+        )}
       </Modal>
     </Layout>
   );
