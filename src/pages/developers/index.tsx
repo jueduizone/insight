@@ -153,7 +153,7 @@ export default function DevelopersPage() {
         "/v1/users?page=1&page_size=500"
       );
       if (res.code === 200) {
-        setUsers(res.data.users || []);
+        setUsers(res.data?.users || []);
       } else {
         message.error(res.message || "获取用户列表失败");
       }
