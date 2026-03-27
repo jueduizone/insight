@@ -897,7 +897,7 @@ export default function DevelopersPage() {
                       }
                       placeholder="选择 CSV 列"
                       allowClear
-                      style={{ flex: 1 }}
+                      style={{ flex: 1, minWidth: 0, maxWidth: "100%" }}
                       size="small"
                     >
                       {previewData.columns.map((col) => (
