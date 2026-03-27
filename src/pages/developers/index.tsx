@@ -30,6 +30,7 @@ import {
   InboxOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch, API_BASE } from "@/lib/api";
@@ -51,6 +52,8 @@ interface User {
   wechat?: string;
   telegram?: string;
   existing_projects?: string;
+  projects_raw?: string;
+  projects_cleaned?: boolean;
   wallet_address: string;
   web3insight_id: string;
   tags: string[] | null;
@@ -546,20 +549,25 @@ export default function DevelopersPage() {
     },
     {
       title: "已有项目",
-      dataIndex: "existing_projects",
       key: "existing_projects",
       width: 200,
-      render: (val: string) => {
-        if (!val) return <Text type="secondary">—</Text>;
-        const projects = val.split(",").map((s) => s.trim()).filter(Boolean);
-        // 单个值超过 30 字符说明是长描述文本，截断显示
-        if (projects.length === 1 && projects[0].length > 30) {
+      render: (_: unknown, record: User) => {
+        // Cleaning in progress: show spinner + truncated raw text
+        if (record.projects_cleaned === false && record.projects_raw) {
           return (
-            <Tooltip title={projects[0]}>
-              <Text style={{ fontSize: 12 }}>{projects[0].slice(0, 30)}…</Text>
-            </Tooltip>
+            <Space size={4}>
+              <SyncOutlined spin style={{ color: "#7c3aed", fontSize: 12 }} />
+              <Tooltip title={record.projects_raw}>
+                <Text style={{ fontSize: 12 }}>
+                  {record.projects_raw.slice(0, 25)}…
+                </Text>
+              </Tooltip>
+            </Space>
           );
         }
+        const val = record.existing_projects;
+        if (!val) return <Text type="secondary">—</Text>;
+        const projects = val.split(",").map((s) => s.trim()).filter(Boolean);
         return (
           <Space wrap size={4}>
             {projects.slice(0, 3).map((p) => (

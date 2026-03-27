@@ -7,29 +7,37 @@ import (
 	"gorm.io/gorm"
 )
 
+// Migration SQL (run manually):
+//   ALTER TABLE users ADD COLUMN projects_raw TEXT NOT NULL DEFAULT '';
+//   ALTER TABLE users ADD COLUMN projects_cleaned BOOLEAN NOT NULL DEFAULT FALSE;
+//   ALTER TABLE users ADD COLUMN projects_cleaned_at TIMESTAMP;
+
 type User struct {
 	gorm.Model
-	Email            string         `gorm:"unique;not null" json:"email"`
-	Username         string         `json:"username"`
-	Intro            string         `json:"intro"`
-	MonadExperience  string         `json:"monad_experience"`
-	Avatar           string         `json:"avatar"`
-	Github           string         `json:"github"`
-	Twitter          string         `json:"twitter"`
-	Wechat           string         `json:"wechat"`
-	Telegram         string         `json:"telegram"`
-	ExistingProjects string         `json:"existing_projects"`
-	Uid              uint           `json:"-"` // OAUTH
-	WalletAddress    string         `json:"wallet_address"`
-	Web3InsightId    string         `json:"web3insight_id"`
-	Tags             pq.StringArray `gorm:"type:text[]" json:"tags"`
-	Group            string         `json:"group" gorm:"default:normal"`
-	GithubStats      []byte         `gorm:"type:jsonb" json:"github_stats"`
-	TwitterStats     []byte         `gorm:"type:jsonb" json:"twitter_stats"`
-	Notes            string         `json:"notes"`
-	Role             string         `json:"role" gorm:"default:admin"`
-	PasswordHash     string         `json:"-"`
-	ActivityScore    int            `json:"activity_score"`
+	Email             string         `gorm:"unique;not null" json:"email"`
+	Username          string         `json:"username"`
+	Intro             string         `json:"intro"`
+	MonadExperience   string         `json:"monad_experience"`
+	Avatar            string         `json:"avatar"`
+	Github            string         `json:"github"`
+	Twitter           string         `json:"twitter"`
+	Wechat            string         `json:"wechat"`
+	Telegram          string         `json:"telegram"`
+	ExistingProjects  string         `json:"existing_projects"`
+	Uid               uint           `json:"-"` // OAUTH
+	WalletAddress     string         `json:"wallet_address"`
+	Web3InsightId     string         `json:"web3insight_id"`
+	Tags              pq.StringArray `gorm:"type:text[]" json:"tags"`
+	Group             string         `json:"group" gorm:"default:normal"`
+	GithubStats       []byte         `gorm:"type:jsonb" json:"github_stats"`
+	TwitterStats      []byte         `gorm:"type:jsonb" json:"twitter_stats"`
+	Notes             string         `json:"notes"`
+	Role              string         `json:"role" gorm:"default:admin"`
+	PasswordHash      string         `json:"-"`
+	ActivityScore     int            `json:"activity_score"`
+	ProjectsRaw       string         `gorm:"column:projects_raw" json:"projects_raw"`
+	ProjectsCleaned   bool           `gorm:"column:projects_cleaned;default:false" json:"projects_cleaned"`
+	ProjectsCleanedAt *time.Time     `gorm:"column:projects_cleaned_at" json:"projects_cleaned_at"`
 }
 
 func GetUserByUid(uid uint) (*User, error) {
@@ -80,7 +88,7 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, monad_experience, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score")
+	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, monad_experience, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score, projects_raw, projects_cleaned, projects_cleaned_at")
 
 	// 用户名模糊查询
 	if filter.Username != "" {
@@ -149,4 +157,22 @@ func CountUsersCreatedAfter(t time.Time) (int64, error) {
 func CountActiveUsers() (int64, error) {
 	var count int64
 	return count, db.Model(&User{}).Where("activity_score > 0").Count(&count).Error
+}
+
+// GetUsersForProjectsCleaning returns users that have projects_raw set but not yet cleaned.
+func GetUsersForProjectsCleaning(limit int) ([]User, error) {
+	var users []User
+	err := db.Where("projects_cleaned = false AND projects_raw != ''").
+		Select("id, projects_raw").
+		Limit(limit).Find(&users).Error
+	return users, err
+}
+
+// MarkProjectsCleaned updates a user's existing_projects with the cleaned result and marks it as done.
+func MarkProjectsCleaned(userID uint, cleanedProjects string, cleanedAt time.Time) error {
+	return db.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"existing_projects":   cleanedProjects,
+		"projects_cleaned":    true,
+		"projects_cleaned_at": cleanedAt,
+	}).Error
 }

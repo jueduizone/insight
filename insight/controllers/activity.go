@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"insight/models"
 	"insight/utils"
+	"insight/workers"
 	"log"
 	"net/http"
 	"strconv"
@@ -305,6 +306,10 @@ func ImportCSV(c *gin.Context) {
 			}
 			if existingProjects != "" {
 				existingUser.ExistingProjects = existingProjects
+				if len(existingProjects) > 30 {
+					existingUser.ProjectsRaw = existingProjects
+					existingUser.ProjectsCleaned = false
+				}
 			}
 			if intro != "" {
 				existingUser.Intro = intro
@@ -328,6 +333,10 @@ func ImportCSV(c *gin.Context) {
 				Intro:            intro,
 				MonadExperience:  monadExperience,
 				Role:             "member",
+			}
+			if len(existingProjects) > 30 {
+				newUser.ProjectsRaw = existingProjects
+				newUser.ProjectsCleaned = false
 			}
 			if err := models.CreateUser(&newUser); err != nil {
 				continue
@@ -386,6 +395,9 @@ func ImportCSV(c *gin.Context) {
 			}
 		}(githubLogins)
 	}
+
+	// Async trigger project cleaning for any newly marked users
+	go workers.CleanProjects()
 
 	utils.SuccessResponse(c, http.StatusOK, "Import complete", gin.H{
 		"created":               created,

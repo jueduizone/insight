@@ -49,6 +49,8 @@ interface UserDetail {
   wechat?: string;
   telegram?: string;
   existing_projects?: string;
+  projects_raw?: string;
+  projects_cleaned?: boolean;
   wallet_address: string;
   web3insight_id: string;
   tags: string[] | null;
@@ -568,7 +570,7 @@ export default function DeveloperDetailPage() {
                         </Paragraph>
                       </div>
                     )}
-                    {user.existing_projects && (
+                    {(user.existing_projects || user.projects_raw) && (
                       <div>
                         <Text
                           type="secondary"
@@ -576,26 +578,33 @@ export default function DeveloperDetailPage() {
                         >
                           已有项目：
                         </Text>
-                        {(() => {
-                          const parts = user.existing_projects!.split(",").map(p => p.trim()).filter(Boolean);
-                          // 单条长文本（描述性内容）→ 截断显示
-                          if (parts.length === 1 && parts[0].length > 20) {
-                            return (
-                              <Text style={{ fontSize: 13, wordBreak: "break-all", display: "block", maxHeight: 60, overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {parts[0].slice(0, 80)}{parts[0].length > 80 ? "…" : ""}
-                              </Text>
-                            );
-                          }
-                          return (
-                            <Space wrap size={4}>
-                              {parts.map((p) => (
-                                <Tag key={p} color="cyan" style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                  {p.length > 20 ? p.slice(0, 20) + "…" : p}
-                                </Tag>
-                              ))}
+                        {user.projects_cleaned === false && user.projects_raw ? (
+                          // AI extraction in progress
+                          <div>
+                            <Text style={{ fontSize: 13, color: "#999", wordBreak: "break-all", display: "block" }}>
+                              {user.projects_raw.slice(0, 100)}{user.projects_raw.length > 100 ? "…" : ""}
+                            </Text>
+                            <Space size={4} style={{ marginTop: 4 }}>
+                              <SyncOutlined spin style={{ color: "#7c3aed", fontSize: 12 }} />
+                              <Text type="secondary" style={{ fontSize: 12 }}>AI 提取中...</Text>
                             </Space>
-                          );
-                        })()}
+                          </div>
+                        ) : (
+                          // Cleaned or short text — show as tags
+                          (() => {
+                            const parts = (user.existing_projects || "").split(",").map(p => p.trim()).filter(Boolean);
+                            if (parts.length === 0) return null;
+                            return (
+                              <Space wrap size={4}>
+                                {parts.map((p) => (
+                                  <Tag key={p} color="cyan" style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {p.length > 20 ? p.slice(0, 20) + "…" : p}
+                                  </Tag>
+                                ))}
+                              </Space>
+                            );
+                          })()
+                        )}
                       </div>
                     )}
                   </Space>
