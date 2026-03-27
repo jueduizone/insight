@@ -11,9 +11,12 @@ type User struct {
 	Username      string         `json:"username"`
 	Intro         string         `json:"intro"`
 	Avatar        string         `json:"avatar"`
-	Github        string         `json:"github"`
-	Twitter       string         `json:"twitter"`
-	Uid           uint           `json:"-"` // OAUTH
+	Github           string         `json:"github"`
+	Twitter          string         `json:"twitter"`
+	Wechat           string         `json:"wechat"`
+	Telegram         string         `json:"telegram"`
+	ExistingProjects string         `json:"existing_projects"`
+	Uid              uint           `json:"-"` // OAUTH
 	WalletAddress string         `json:"wallet_address"`
 	Web3InsightId string         `json:"web3insight_id"`
 	Tags          pq.StringArray `gorm:"type:text[]" json:"tags"`
@@ -72,7 +75,7 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, avatar, github, twitter, wallet_address, web3insight_id, tags, \"group\", notes, role")
+	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role")
 
 	// 用户名模糊查询
 	if filter.Username != "" {

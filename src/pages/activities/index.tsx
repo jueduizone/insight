@@ -59,9 +59,13 @@ interface ImportResult {
 
 const SYSTEM_FIELDS = [
   "email",
-  "username",
+  "last_name",
+  "first_name",
   "github",
   "wallet_address",
+  "wechat",
+  "telegram",
+  "existing_projects",
   "award",
   "role",
   "status",
@@ -69,9 +73,13 @@ const SYSTEM_FIELDS = [
 
 const FIELD_LABELS: Record<string, string> = {
   email: "邮箱",
-  username: "姓名",
+  last_name: "姓",
+  first_name: "名",
   github: "GitHub",
   wallet_address: "钱包地址",
+  wechat: "微信",
+  telegram: "Telegram",
+  existing_projects: "已有项目",
   award: "获奖情况",
   role: "角色",
   status: "参与状态",

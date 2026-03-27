@@ -251,9 +251,19 @@ func ImportCSV(c *gin.Context) {
 		github := getValue(row, "github")
 		wallet := getValue(row, "wallet_address")
 		username := getValue(row, "username")
+		firstName := getValue(row, "first_name")
+		lastName := getValue(row, "last_name")
 		award := getValue(row, "award")
 		role := getValue(row, "role")
 		status := getValue(row, "status")
+		wechat := getValue(row, "wechat")
+		telegram := getValue(row, "telegram")
+		existingProjects := getValue(row, "existing_projects")
+
+		// If username is empty but first/last name present, compose it (姓在前)
+		if username == "" && (lastName != "" || firstName != "") {
+			username = strings.TrimSpace(lastName + " " + firstName)
+		}
 
 		// Dedup: find existing user by priority
 		var existingUser *models.User
@@ -283,16 +293,28 @@ func ImportCSV(c *gin.Context) {
 			if wallet != "" {
 				existingUser.WalletAddress = wallet
 			}
+			if wechat != "" {
+				existingUser.Wechat = wechat
+			}
+			if telegram != "" {
+				existingUser.Telegram = telegram
+			}
+			if existingProjects != "" {
+				existingUser.ExistingProjects = existingProjects
+			}
 			models.UpdateUser(existingUser)
 			userID = existingUser.ID
 			merged++
 		} else {
 			// Create new user
 			newUser := models.User{
-				Email:         email,
-				Username:      username,
-				Github:        github,
-				WalletAddress: wallet,
+				Email:            email,
+				Username:         username,
+				Github:           github,
+				WalletAddress:    wallet,
+				Wechat:           wechat,
+				Telegram:         telegram,
+				ExistingProjects: existingProjects,
 			}
 			if err := models.CreateUser(&newUser); err != nil {
 				continue
@@ -303,8 +325,9 @@ func ImportCSV(c *gin.Context) {
 
 		// Collect extra fields not in standard mapping
 		standardFields := map[string]bool{
-			"email": true, "username": true, "github": true,
-			"wallet_address": true, "award": true, "role": true, "status": true,
+			"email": true, "username": true, "first_name": true, "last_name": true,
+			"github": true, "wallet_address": true, "award": true, "role": true,
+			"status": true, "wechat": true, "telegram": true, "existing_projects": true,
 		}
 		extraData := make(map[string]string)
 		for field, col := range fieldMapping {
