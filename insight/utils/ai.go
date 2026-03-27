@@ -20,7 +20,7 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
-		"max_tokens":  500,
+		"max_tokens":  1000,
 		"temperature": 0.3,
 	})
 	if err != nil {

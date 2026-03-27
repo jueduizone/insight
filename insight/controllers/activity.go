@@ -454,7 +454,7 @@ func SuggestFieldMapping(c *gin.Context) {
 - award: 获奖情况
 - role: 参与角色
 - status: 参与状态`
-	userPrompt := "CSV 列名：" + string(columnsJSON) + "\n\n请返回 JSON 格式，key 是系统字段名，value 是对应的 CSV 列名（找不到对应列就不包含该字段）。只返回 JSON，不要其他文字。"
+	userPrompt := "CSV 列名列表：" + string(columnsJSON) + "\n\n严格按以下格式返回 JSON，key 必须是英文系统字段名，value 必须是对应的 CSV 列名原文。找不到对应的字段不要包含。只返回 JSON 对象，不要任何其他文字：\n{\"email\": \"对应的CSV列名\", \"github\": \"对应的CSV列名\", ...}"
 
 	content, err := utils.CallKimi(systemPrompt, userPrompt)
 	if err != nil {
