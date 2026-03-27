@@ -95,7 +95,7 @@ interface ActivityRecord {
   award: string;
   role: string;
   status: string;
-  extra_data?: string;
+  extra_data?: Record<string, string> | string;
   event?: ActivityEvent;
 }
 
@@ -337,19 +337,17 @@ export default function DeveloperDetailPage() {
     );
   }
 
-  function parseExtraData(raw?: string): Record<string, string> | null {
+  function parseExtraData(raw?: string | Record<string, string>): Record<string, string> | null {
     if (!raw) return null;
+    // Already an object (json.RawMessage serialized as object)
+    if (typeof raw === "object") {
+      return Object.keys(raw).length > 0 ? raw as Record<string, string> : null;
+    }
     try {
-      const decoded = atob(raw);
-      const obj = JSON.parse(decoded);
+      const obj = JSON.parse(raw as string);
       if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj as Record<string, string>;
     } catch {
-      try {
-        const obj = JSON.parse(raw);
-        if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj as Record<string, string>;
-      } catch {
-        // ignore
-      }
+      // ignore
     }
     return null;
   }

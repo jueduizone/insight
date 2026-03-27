@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type ActivityEvent struct {
 	ID          uint      `gorm:"primarykey" json:"id"`
@@ -23,7 +26,7 @@ type ActivityRecord struct {
 	Role      string    `json:"role"`
 	Award     string    `json:"award"`
 	Status    string    `json:"status"`
-	ExtraData []byte    `gorm:"type:jsonb" json:"extra_data"`
+	ExtraData json.RawMessage `gorm:"type:jsonb" json:"extra_data"`
 	User      User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Event     ActivityEvent `gorm:"foreignKey:EventID" json:"event,omitempty"`
 }
