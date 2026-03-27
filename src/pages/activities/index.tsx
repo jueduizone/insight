@@ -724,7 +724,7 @@ export default function ActivitiesPage() {
                 <Card
                   key={field}
                   size="small"
-                  style={{ background: "#fafafa" }}
+                  style={{ background: "#fafafa", overflow: "hidden" }}
                 >
                   <div
                     style={{
@@ -751,6 +751,7 @@ export default function ActivitiesPage() {
                       placeholder="选择 CSV 列"
                       allowClear
                       style={{ flex: 1, minWidth: 0, maxWidth: "100%" }}
+                      popupMatchSelectWidth={false}
                       size="small"
                     >
                       {previewData.columns.map((col) => (
