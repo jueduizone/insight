@@ -261,6 +261,8 @@ func ImportCSV(c *gin.Context) {
 		wechat := getValue(row, "wechat")
 		telegram := getValue(row, "telegram")
 		existingProjects := getValue(row, "existing_projects")
+		intro := getValue(row, "intro")
+		monadExperience := getValue(row, "monad_experience")
 
 		// If username is empty but first/last name present, compose it (姓在前)
 		if username == "" && (lastName != "" || firstName != "") {
@@ -304,6 +306,12 @@ func ImportCSV(c *gin.Context) {
 			if existingProjects != "" {
 				existingUser.ExistingProjects = existingProjects
 			}
+			if intro != "" {
+				existingUser.Intro = intro
+			}
+			if monadExperience != "" {
+				existingUser.MonadExperience = monadExperience
+			}
 			models.UpdateUser(existingUser)
 			userID = existingUser.ID
 			merged++
@@ -317,6 +325,8 @@ func ImportCSV(c *gin.Context) {
 				Wechat:           wechat,
 				Telegram:         telegram,
 				ExistingProjects: existingProjects,
+				Intro:            intro,
+				MonadExperience:  monadExperience,
 				Role:             "member",
 			}
 			if err := models.CreateUser(&newUser); err != nil {
@@ -331,6 +341,7 @@ func ImportCSV(c *gin.Context) {
 			"email": true, "username": true, "first_name": true, "last_name": true,
 			"github": true, "wallet_address": true, "award": true, "role": true,
 			"status": true, "wechat": true, "telegram": true, "existing_projects": true,
+			"intro": true, "monad_experience": true,
 		}
 		extraData := make(map[string]string)
 		for field, col := range fieldMapping {

@@ -12,6 +12,7 @@ type User struct {
 	Email            string         `gorm:"unique;not null" json:"email"`
 	Username         string         `json:"username"`
 	Intro            string         `json:"intro"`
+	MonadExperience  string         `json:"monad_experience"`
 	Avatar           string         `json:"avatar"`
 	Github           string         `json:"github"`
 	Twitter          string         `json:"twitter"`
@@ -79,7 +80,7 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score")
+	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, monad_experience, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score")
 
 	// 用户名模糊查询
 	if filter.Username != "" {
