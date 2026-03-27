@@ -73,14 +73,20 @@ export default function Layout({ children }: LayoutProps) {
       label: <Link href="/activities">活动管理</Link>,
     },
     {
-      key: "/projects",
+      key: "/projects-group",
       icon: <AppstoreOutlined />,
-      label: <Link href="/projects">项目管理</Link>,
-    },
-    {
-      key: "/projects/hackathon",
-      icon: <UploadOutlined />,
-      label: <Link href="/projects/hackathon">Hackathon 导入</Link>,
+      label: "项目管理",
+      children: [
+        {
+          key: "/projects",
+          label: <Link href="/projects">项目列表</Link>,
+        },
+        {
+          key: "/projects/hackathon",
+          icon: <UploadOutlined />,
+          label: <Link href="/projects/hackathon">Hackathon 导入</Link>,
+        },
+      ],
     },
     {
       key: "/operations",
@@ -141,6 +147,7 @@ export default function Layout({ children }: LayoutProps) {
         <Menu
           mode="inline"
           selectedKeys={[activeKey]}
+          defaultOpenKeys={["/projects-group"]}
           items={menuItems}
           style={{ border: "none", marginTop: 4 }}
         />
