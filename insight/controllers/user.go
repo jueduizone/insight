@@ -101,6 +101,42 @@ func QueryUsers(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Success", response)
 }
 
+// ChangePassword PUT /v1/users/me/password
+func ChangePassword(c *gin.Context) {
+	uid, _ := c.Get("uid")
+
+	user, err := models.GetUserById(uid.(uint))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "User not found", nil)
+		return
+	}
+
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters", err.Error())
+		return
+	}
+
+	if !utils.CheckPasswordHash(req.OldPassword, user.PasswordHash) {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "Old password is incorrect", nil)
+		return
+	}
+
+	hash, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to hash password", err.Error())
+		return
+	}
+
+	user.PasswordHash = hash
+	if err := models.UpdateUser(user); err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to update password", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Password changed successfully", nil)
+}
+
 // SyncUserWeb3Insight POST /v1/users/:id/sync-web3insight
 func SyncUserWeb3Insight(c *gin.Context) {
 	idParam := c.Param("id")

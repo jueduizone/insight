@@ -5,6 +5,7 @@ import (
 	"insight/logger"
 	"insight/middlewares"
 	"insight/routes"
+	"insight/workers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -15,6 +16,9 @@ func main() {
 	logFile := viper.GetString("log.file")
 	logLevel := viper.GetString("log.level")
 	logger.Init(logFile, logLevel)
+
+	workers.RunGitHubWorker()
+	workers.RunActivityScoreWorker()
 
 	r := gin.Default()
 	r.Use(middlewares.Cors())

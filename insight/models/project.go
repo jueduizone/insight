@@ -13,6 +13,14 @@ type Project struct {
 	Site        string         `json:"site"`
 	CoverImg    string         `json:"cover_image"`
 	Tags        pq.StringArray `gorm:"type:text[]" json:"tags"`
+	EventID     uint           `json:"event_id"`
+	TeamName    string         `json:"team_name"`
+	Members     string         `json:"members"`
+	Score       float64        `json:"score"`
+	Scores      []byte         `gorm:"type:jsonb" json:"scores"`
+	Rank        int            `json:"rank"`
+	Status      string         `json:"status"`
+	AwardLevel  string         `json:"award_level"`
 }
 
 // ProjectFilter 项目查询过滤器
@@ -45,6 +53,19 @@ func UpdateProject(project *Project) error {
 // DeleteProject 删除项目
 func DeleteProject(id uint) error {
 	return db.Delete(&Project{}, id).Error
+}
+
+// GetProjectByNameAndEventID 根据名称和活动ID查询项目（用于dedup）
+func GetProjectByNameAndEventID(name string, eventID uint) (*Project, error) {
+	var project Project
+	query := db.Where("name = ?", name)
+	if eventID > 0 {
+		query = query.Where("event_id = ?", eventID)
+	}
+	if err := query.First(&project).Error; err != nil {
+		return nil, err
+	}
+	return &project, nil
 }
 
 // QueryProjects 查询项目列表（带分页和筛选）
@@ -102,4 +123,9 @@ func GetProjectsByTag(tag string) ([]Project, error) {
 		Order("created_at DESC").
 		Find(&projects).Error
 	return projects, err
+}
+
+func CountProjects() (int64, error) {
+	var count int64
+	return count, db.Model(&Project{}).Count(&count).Error
 }

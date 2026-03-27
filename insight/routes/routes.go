@@ -24,7 +24,12 @@ func SetupRouter(r *gin.Engine) {
 
 		auth.GET("/projects", controllers.QueryProjects)
 		auth.POST("/projects", controllers.CreateProject)
+		auth.POST("/projects/hackathon/import", controllers.ImportHackathonCSV)
 		auth.GET("/projects/:id", controllers.GetProject)
+		auth.PUT("/projects/:id", controllers.UpdateProject)
+		auth.DELETE("/projects/:id", controllers.DeleteProject)
+
+		auth.PUT("/users/me/password", controllers.ChangePassword)
 
 		auth.GET("/events", controllers.QueryEvents)
 		auth.POST("/events", controllers.CreateEvent)
@@ -36,5 +41,7 @@ func SetupRouter(r *gin.Engine) {
 
 		auth.POST("/operation-logs", controllers.CreateLog)
 		auth.GET("/operation-logs", controllers.GetLogs)
+
+		auth.GET("/stats", controllers.GetStats)
 	}
 }

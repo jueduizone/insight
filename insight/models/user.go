@@ -1,31 +1,34 @@
 package models
 
 import (
+	"time"
+
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
 type User struct {
 	gorm.Model
-	Email         string         `gorm:"unique;not null" json:"email"`
-	Username      string         `json:"username"`
-	Intro         string         `json:"intro"`
-	Avatar        string         `json:"avatar"`
+	Email            string         `gorm:"unique;not null" json:"email"`
+	Username         string         `json:"username"`
+	Intro            string         `json:"intro"`
+	Avatar           string         `json:"avatar"`
 	Github           string         `json:"github"`
 	Twitter          string         `json:"twitter"`
 	Wechat           string         `json:"wechat"`
 	Telegram         string         `json:"telegram"`
 	ExistingProjects string         `json:"existing_projects"`
 	Uid              uint           `json:"-"` // OAUTH
-	WalletAddress string         `json:"wallet_address"`
-	Web3InsightId string         `json:"web3insight_id"`
-	Tags          pq.StringArray `gorm:"type:text[]" json:"tags"`
-	Group         string         `json:"group" gorm:"default:normal"`
-	GithubStats   []byte         `gorm:"type:jsonb" json:"github_stats"`
-	TwitterStats  []byte         `gorm:"type:jsonb" json:"twitter_stats"`
-	Notes         string         `json:"notes"`
-	Role          string         `json:"role" gorm:"default:admin"`
-	PasswordHash  string         `json:"-"`
+	WalletAddress    string         `json:"wallet_address"`
+	Web3InsightId    string         `json:"web3insight_id"`
+	Tags             pq.StringArray `gorm:"type:text[]" json:"tags"`
+	Group            string         `json:"group" gorm:"default:normal"`
+	GithubStats      []byte         `gorm:"type:jsonb" json:"github_stats"`
+	TwitterStats     []byte         `gorm:"type:jsonb" json:"twitter_stats"`
+	Notes            string         `json:"notes"`
+	Role             string         `json:"role" gorm:"default:admin"`
+	PasswordHash     string         `json:"-"`
+	ActivityScore    int            `json:"activity_score"`
 }
 
 func GetUserByUid(uid uint) (*User, error) {
@@ -68,6 +71,7 @@ type UserQueryFilter struct {
 	Page     int    `json:"page" form:"page"`           // 页码，默认1
 	PageSize int    `json:"page_size" form:"page_size"` // 每页数量，默认10
 	Username string `json:"username" form:"username"`   // 用户名模糊查询
+	Role     string `json:"role" form:"role"`           // 角色过滤
 }
 
 // QueryUsers 查询用户列表
@@ -75,12 +79,16 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role")
+	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score")
 
 	// 用户名模糊查询
 	if filter.Username != "" {
 		likePattern := "%" + filter.Username + "%"
 		query = query.Where("username ILIKE ?", likePattern)
+	}
+
+	if filter.Role != "" {
+		query = query.Where("role = ?", filter.Role)
 	}
 
 	// 统计总数
@@ -102,4 +110,39 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	// 执行查询
 	err := query.Offset(offset).Limit(filter.PageSize).Find(&users).Error
 	return users, total, err
+}
+
+func GetAllUsersWithGithub() ([]User, error) {
+	var users []User
+	err := db.Where("github != ''").Select("id, github, username").Find(&users).Error
+	return users, err
+}
+
+func UpdateUserGithubStats(userID uint, stats []byte) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("github_stats", stats).Error
+}
+
+func GetAllUsersForScore() ([]User, error) {
+	var users []User
+	err := db.Select("id, github_stats, web3insight_id").Find(&users).Error
+	return users, err
+}
+
+func UpdateUserActivityScore(userID uint, score int) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("activity_score", score).Error
+}
+
+func CountUsers() (int64, error) {
+	var count int64
+	return count, db.Model(&User{}).Count(&count).Error
+}
+
+func CountUsersCreatedAfter(t time.Time) (int64, error) {
+	var count int64
+	return count, db.Model(&User{}).Where("created_at >= ?", t).Count(&count).Error
+}
+
+func CountActiveUsers() (int64, error) {
+	var count int64
+	return count, db.Model(&User{}).Where("activity_score > 0").Count(&count).Error
 }

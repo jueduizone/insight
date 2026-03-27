@@ -134,6 +134,11 @@ type UpdateEventRequest struct {
 	Description string    `json:"description"`
 }
 
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}
+
 // OperationLog
 type CreateLogRequest struct {
 	TargetType string `json:"target_type" binding:"required"`

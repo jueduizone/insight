@@ -10,16 +10,16 @@ import {
   Typography,
   Button,
   Spin,
-  Table,
+  Timeline,
   List,
   Form,
   Input,
   Modal,
   Tooltip,
   Divider,
+  Badge,
   message,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
 import {
   ArrowLeftOutlined,
   GithubOutlined,
@@ -56,16 +56,26 @@ interface UserDetail {
   twitter_stats: string | null;
   notes: string;
   role: string;
+  activity_score: number;
 }
 
 interface GithubStats {
+  // Web3Insight fields
   total_commits?: number;
-  active_repos?: number;
+  active_repos?: number | string[];
   languages?: string[];
   weekly_activity?: number;
   score?: number;
   rank?: number;
   eco_contributions?: number;
+  // GitHub worker fields
+  login?: string;
+  public_repos?: number;
+  followers?: number;
+  total_commits_7d?: number;
+  total_commits_30d?: number;
+  last_active_at?: string;
+  fetched_at?: string;
 }
 
 interface ActivityEvent {
@@ -92,14 +102,39 @@ interface OperationLog {
   admin?: { username: string; email: string };
 }
 
+interface Project {
+  ID: number;
+  name: string;
+  github: string;
+  award_level: string;
+  score: number;
+  members: string;
+}
+
+interface ProjectListData {
+  projects: Project[];
+  total: number;
+}
+
 function parseGithubStats(raw: string | null): GithubStats | null {
   if (!raw) return null;
   try {
     const decoded = atob(raw);
     return JSON.parse(decoded) as GithubStats;
   } catch {
-    return null;
+    try {
+      return JSON.parse(raw) as GithubStats;
+    } catch {
+      return null;
+    }
   }
+}
+
+function scoreColor(score: number): string {
+  if (score === 0) return "default";
+  if (score <= 30) return "orange";
+  if (score <= 60) return "blue";
+  return "green";
 }
 
 export default function DeveloperDetailPage() {
@@ -112,6 +147,7 @@ export default function DeveloperDetailPage() {
   const [activityLoading, setActivityLoading] = useState(true);
   const [logs, setLogs] = useState<OperationLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const [syncing, setSyncing] = useState(false);
 
@@ -131,12 +167,39 @@ export default function DeveloperDetailPage() {
     setLoading(true);
     try {
       const res = await apiFetch<UserDetail>(`/v1/users/${uid}`);
-      if (res.code === 200) setUser(res.data);
-      else message.error(res.message || "获取用户信息失败");
+      if (res.code === 200) {
+        setUser(res.data);
+        fetchProjects(res.data);
+      } else message.error(res.message || "获取用户信息失败");
     } catch {
       message.error("获取用户信息失败");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchProjects(u: UserDetail) {
+    try {
+      const res = await apiFetch<ProjectListData>(
+        "/v1/projects?page=1&page_size=100"
+      );
+      if (res.code === 200) {
+        const all = res.data.projects || [];
+        const matched = all.filter((p) => {
+          const m = p.members || "";
+          if (u.github && m.toLowerCase().includes(u.github.toLowerCase()))
+            return true;
+          if (
+            u.username &&
+            m.toLowerCase().includes(u.username.toLowerCase())
+          )
+            return true;
+          return false;
+        });
+        setProjects(matched);
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -176,7 +239,6 @@ export default function DeveloperDetailPage() {
       });
       if (res.code === 200) {
         message.success("Web3Insight 数据同步成功");
-        // Re-fetch user so github_stats reflects the newly saved data
         fetchUser(uid);
       } else {
         message.error(res.message || "同步失败");
@@ -216,61 +278,18 @@ export default function DeveloperDetailPage() {
     }
   };
 
-  const activityColumns: ColumnsType<ActivityRecord> = [
-    {
-      title: "活动名称",
-      key: "event_name",
-      render: (_: unknown, r: ActivityRecord) => (
-        <Text>{r.event?.name ?? `活动 #${r.event_id}`}</Text>
-      ),
-    },
-    {
-      title: "类型",
-      key: "event_type",
-      render: (_: unknown, r: ActivityRecord) =>
-        r.event?.type ? (
-          <Tag color="purple">{r.event.type}</Tag>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: "平台",
-      key: "platform",
-      render: (_: unknown, r: ActivityRecord) =>
-        r.event?.platform ? (
-          <Tag color="blue">{r.event.platform}</Tag>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: "角色",
-      dataIndex: "role",
-      key: "role",
-      render: (role: string) => role || <Text type="secondary">—</Text>,
-    },
-    {
-      title: "获奖情况",
-      dataIndex: "award",
-      key: "award",
-      render: (award: string) =>
-        award ? (
-          <Tag color="gold">{award}</Tag>
-        ) : (
-          <Text type="secondary">—</Text>
-        ),
-    },
-    {
-      title: "状态",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) =>
-        status ? <Tag color="green">{status}</Tag> : <Text type="secondary">—</Text>,
-    },
-  ];
-
   const githubStats = user ? parseGithubStats(user.github_stats) : null;
+
+  const activeReposList = githubStats
+    ? Array.isArray(githubStats.active_repos)
+      ? (githubStats.active_repos as string[]).slice(0, 3)
+      : null
+    : null;
+
+  const activeReposCount =
+    githubStats && typeof githubStats.active_repos === "number"
+      ? githubStats.active_repos
+      : null;
 
   if (loading) {
     return (
@@ -291,6 +310,31 @@ export default function DeveloperDetailPage() {
       </Layout>
     );
   }
+
+  const activityTimelineItems = activity.map((r) => ({
+    key: r.id,
+    color: r.award ? "gold" : "blue",
+    children: (
+      <div>
+        <Space wrap size={4}>
+          <Text strong>{r.event?.name ?? `活动 #${r.event_id}`}</Text>
+          {r.event?.type && <Tag color="purple">{r.event.type}</Tag>}
+          {r.award && <Tag color="gold">{r.award}</Tag>}
+          {r.role && <Tag color="default">{r.role}</Tag>}
+          {r.status && <Tag color="green">{r.status}</Tag>}
+        </Space>
+        {r.event?.start_date && (
+          <Text
+            type="secondary"
+            style={{ display: "block", fontSize: 12, marginTop: 2 }}
+          >
+            {new Date(r.event.start_date).toLocaleDateString("zh-CN")}
+            {r.event.platform ? ` · ${r.event.platform}` : ""}
+          </Text>
+        )}
+      </div>
+    ),
+  }));
 
   return (
     <Layout>
@@ -321,8 +365,19 @@ export default function DeveloperDetailPage() {
                 </Title>
                 {user.group && <Tag color="blue">{user.group}</Tag>}
                 <Tag color="purple">{user.role}</Tag>
+                <Badge
+                  color={scoreColor(user.activity_score || 0)}
+                  text={
+                    <Text style={{ fontSize: 12 }}>
+                      活跃度 {user.activity_score || 0}
+                    </Text>
+                  }
+                />
               </Space>
-              <Text type="secondary" style={{ display: "block", marginBottom: 10 }}>
+              <Text
+                type="secondary"
+                style={{ display: "block", marginBottom: 10 }}
+              >
                 {user.email}
               </Text>
 
@@ -362,9 +417,7 @@ export default function DeveloperDetailPage() {
                     {user.wechat}
                   </Tag>
                 )}
-                {user.telegram && (
-                  <Tag color="blue">@{user.telegram}</Tag>
-                )}
+                {user.telegram && <Tag color="blue">@{user.telegram}</Tag>}
               </Space>
 
               {(user.tags?.length ?? 0) > 0 && (
@@ -429,7 +482,10 @@ export default function DeveloperDetailPage() {
                     )}
                     {user.existing_projects && (
                       <div>
-                        <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
+                        <Text
+                          type="secondary"
+                          style={{ display: "block", marginBottom: 4 }}
+                        >
                           已有项目：
                         </Text>
                         <Space wrap size={4}>
@@ -451,7 +507,7 @@ export default function DeveloperDetailPage() {
 
               <Col xs={24} md={12}>
                 <Card
-                  title="Web3Insight 数据"
+                  title="GitHub / Web3Insight 数据"
                   size="small"
                   style={{ borderRadius: 12, height: "100%" }}
                   extra={
@@ -470,6 +526,47 @@ export default function DeveloperDetailPage() {
                 >
                   {githubStats ? (
                     <Space direction="vertical" style={{ width: "100%" }}>
+                      {githubStats.total_commits_7d !== undefined && (
+                        <div>
+                          <Text type="secondary">近7天提交：</Text>
+                          <Text strong style={{ color: "#7c3aed" }}>
+                            {githubStats.total_commits_7d}
+                          </Text>
+                        </div>
+                      )}
+                      {githubStats.total_commits_30d !== undefined && (
+                        <div>
+                          <Text type="secondary">近30天提交：</Text>
+                          <Text strong>{githubStats.total_commits_30d}</Text>
+                        </div>
+                      )}
+                      {activeReposList && activeReposList.length > 0 && (
+                        <div>
+                          <Text
+                            type="secondary"
+                            style={{ display: "block", marginBottom: 4 }}
+                          >
+                            活跃仓库：
+                          </Text>
+                          <Space wrap size={4}>
+                            {activeReposList.map((r) => (
+                              <Tag key={r} color="geekblue">
+                                {r.split("/")[1] || r}
+                              </Tag>
+                            ))}
+                          </Space>
+                        </div>
+                      )}
+                      {githubStats.last_active_at && (
+                        <div>
+                          <Text type="secondary">最后活跃：</Text>
+                          <Text>
+                            {new Date(
+                              githubStats.last_active_at
+                            ).toLocaleDateString("zh-CN")}
+                          </Text>
+                        </div>
+                      )}
                       {githubStats.score !== undefined && (
                         <div>
                           <Text type="secondary">综合评分：</Text>
@@ -496,10 +593,10 @@ export default function DeveloperDetailPage() {
                           <Text strong>{githubStats.total_commits}</Text>
                         </div>
                       )}
-                      {githubStats.active_repos !== undefined && (
+                      {activeReposCount !== null && (
                         <div>
-                          <Text type="secondary">活跃仓库：</Text>
-                          <Text strong>{githubStats.active_repos}</Text>
+                          <Text type="secondary">活跃仓库数：</Text>
+                          <Text strong>{activeReposCount}</Text>
                         </div>
                       )}
                       {githubStats.weekly_activity !== undefined && (
@@ -548,20 +645,65 @@ export default function DeveloperDetailPage() {
               </Col>
             </Row>
 
-            {/* Activity Records */}
+            {/* Participated Projects */}
+            {projects.length > 0 && (
+              <Card
+                title={`参与项目（${projects.length}）`}
+                style={{ borderRadius: 12, marginBottom: 20 }}
+              >
+                <Row gutter={[12, 12]}>
+                  {projects.map((p) => (
+                    <Col xs={24} sm={12} md={8} key={p.ID}>
+                      <Card size="small" style={{ borderRadius: 8 }}>
+                        <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                          <Text strong>{p.name}</Text>
+                          <Space wrap size={4}>
+                            {p.award_level && (
+                              <Tag color="gold">{p.award_level}</Tag>
+                            )}
+                            {p.score > 0 && (
+                              <Tag color="blue">{p.score} 分</Tag>
+                            )}
+                          </Space>
+                          {p.github && (
+                            <a
+                              href={
+                                p.github.startsWith("http")
+                                  ? p.github
+                                  : `https://github.com/${p.github}`
+                              }
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Tag
+                                icon={<GithubOutlined />}
+                                color="default"
+                                style={{ fontSize: 11 }}
+                              >
+                                GitHub
+                              </Tag>
+                            </a>
+                          )}
+                        </Space>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </Card>
+            )}
+
+            {/* Activity Records Timeline */}
             <Card
               title={`活动参与记录（${activity.length}）`}
               style={{ borderRadius: 12 }}
             >
-              <Table
-                columns={activityColumns}
-                dataSource={activity}
-                rowKey="id"
-                loading={activityLoading}
-                pagination={{ pageSize: 10, showSizeChanger: false }}
-                size="small"
-                locale={{ emptyText: "暂无参与记录" }}
-              />
+              <Spin spinning={activityLoading}>
+                {activity.length === 0 ? (
+                  <Text type="secondary">暂无参与记录</Text>
+                ) : (
+                  <Timeline items={activityTimelineItems} />
+                )}
+              </Spin>
             </Card>
           </Col>
 
@@ -599,7 +741,9 @@ export default function DeveloperDetailPage() {
                             }}
                           >
                             <Text type="secondary" style={{ fontSize: 12 }}>
-                              {log.admin?.username || log.admin?.email || "管理员"}
+                              {log.admin?.username ||
+                                log.admin?.email ||
+                                "管理员"}
                             </Text>
                             <Text type="secondary" style={{ fontSize: 12 }}>
                               {new Date(log.created_at).toLocaleDateString(
