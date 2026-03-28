@@ -290,13 +290,22 @@ func ImportCSV(c *gin.Context) {
 		var existingUser *models.User
 
 		if email != "" {
-			existingUser, _ = models.GetUserByEmail(email)
+			u, err := models.GetUserByEmail(email)
+			if err == nil && u.ID > 0 {
+				existingUser = u
+			}
 		}
 		if existingUser == nil && github != "" {
-			existingUser, _ = models.GetUserByGithub(github)
+			u, err := models.GetUserByGithub(github)
+			if err == nil && u.ID > 0 {
+				existingUser = u
+			}
 		}
 		if existingUser == nil && wallet != "" {
-			existingUser, _ = models.GetUserByWalletAddress(wallet)
+			u, err := models.GetUserByWalletAddress(wallet)
+			if err == nil && u.ID > 0 {
+				existingUser = u
+			}
 		}
 
 		var userID uint
