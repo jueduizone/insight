@@ -37,9 +37,11 @@ import { apiFetch } from "@/lib/api";
 const { Title, Text, Paragraph } = Typography;
 
 interface UserDetail {
-  ID: number;
-  CreatedAt: string;
-  UpdatedAt: string;
+  id?: number;
+  ID?: number;
+  created_at?: string;
+  CreatedAt?: string;
+  first_joined_at?: string;
   email: string;
   username: string;
   intro: string;
@@ -543,7 +545,12 @@ export default function DeveloperDetailPage() {
                     <div>
                       <Text type="secondary">加入时间：</Text>
                       <Text>
-                        {new Date(user.CreatedAt).toLocaleDateString("zh-CN")}
+                        {(() => {
+                          const d = user.first_joined_at || user.created_at || user.CreatedAt;
+                          if (!d || d.startsWith("0001-")) return "—";
+                          const date = new Date(d);
+                          return isNaN(date.getTime()) ? "—" : date.toLocaleDateString("zh-CN");
+                        })()}
                       </Text>
                     </div>
                     {user.intro && (
