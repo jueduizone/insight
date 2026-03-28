@@ -138,6 +138,10 @@ func UpdateUserGithubStats(userID uint, stats []byte) error {
 	return db.Model(&User{}).Where("id = ?", userID).Update("github_stats", stats).Error
 }
 
+func UpdateUserNotes(userID uint, notes string) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("notes", notes).Error
+}
+
 func GetAllUsersForScore() ([]User, error) {
 	var users []User
 	err := db.Select("id, github, github_stats, web3insight_id, notes").Find(&users).Error

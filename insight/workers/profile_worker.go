@@ -50,8 +50,7 @@ func generateProfilesBatch(limit int) int {
 		processed++ // 不管成功失败都算处理过
 		if u.Github == "" && u.Intro == "" && u.MonadExperience == "" && u.ExistingProjects == "" {
 			// 数据不足，标记避免重复处理
-			u.Notes = "（数据不足，待补充）"
-			models.UpdateUser(&u)
+			models.UpdateUserNotes(u.ID, "（数据不足，待补充）")
 			continue
 		}
 
@@ -95,7 +94,7 @@ func generateProfilesBatch(limit int) int {
 		}
 
 		u.Notes = profile
-		if err := models.UpdateUser(&u); err != nil {
+		if err := models.UpdateUserNotes(u.ID, profile); err != nil {
 			log.Printf("[profile_worker] failed to save profile for user %d: %v", u.ID, err)
 		} else {
 			processed++
