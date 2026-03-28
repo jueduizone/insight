@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type MonadDevRecord struct {
@@ -21,40 +22,66 @@ type MonadDevRecord struct {
 }
 
 var (
-	monadDevIndex map[string]*MonadDevRecord
-	monadOnce     sync.Once
+	monadDevIndex atomic.Pointer[map[string]*MonadDevRecord]
+	monadLoadOnce sync.Once
+	monadLoadMu   sync.Mutex
 )
 
 func loadMonadDevIndex() map[string]*MonadDevRecord {
-	monadOnce.Do(func() {
-		monadDevIndex = make(map[string]*MonadDevRecord)
-		// 尝试多个路径
-		paths := []string{"data/monad_devs.json", "./data/monad_devs.json", "/root/insight/insight/data/monad_devs.json"}
-		var data []byte
+	// 如果已加载且非空，直接返回
+	if p := monadDevIndex.Load(); p != nil && len(*p) > 0 {
+		return *p
+	}
+
+	// 加锁防并发重复加载
+	monadLoadMu.Lock()
+	defer monadLoadMu.Unlock()
+
+	// double-check
+	if p := monadDevIndex.Load(); p != nil && len(*p) > 0 {
+		return *p
+	}
+
+	paths := []string{
+		"data/monad_devs.json",
+		"./data/monad_devs.json",
+		"/root/insight/insight/data/monad_devs.json",
+		"/home/bre/insight/insight/data/monad_devs.json",
+	}
+
+	var data []byte
+	var loadedPath string
+	for _, p := range paths {
 		var err error
-		for _, p := range paths {
-			data, err = os.ReadFile(p)
-			if err == nil {
-				log.Printf("[opendevdata] loaded monad_devs.json from %s", p)
-				break
-			}
+		data, err = os.ReadFile(p)
+		if err == nil {
+			loadedPath = p
+			break
 		}
-		if err != nil {
-			log.Printf("[opendevdata] WARNING: could not load monad_devs.json: %v", err)
-			return
-		}
-		var records []MonadDevRecord
-		if err := json.Unmarshal(data, &records); err != nil {
-			log.Printf("[opendevdata] WARNING: failed to parse monad_devs.json: %v", err)
-			return
-		}
-		for i := range records {
-			key := strings.ToLower(records[i].Login)
-			monadDevIndex[key] = &records[i]
-		}
-		log.Printf("[opendevdata] loaded %d Monad dev records", len(monadDevIndex))
-	})
-	return monadDevIndex
+	}
+
+	if loadedPath == "" {
+		log.Printf("[opendevdata] WARNING: monad_devs.json not found in any path")
+		empty := make(map[string]*MonadDevRecord)
+		// 不存储空 map，下次还会重试
+		return empty
+	}
+
+	var records []MonadDevRecord
+	if err := json.Unmarshal(data, &records); err != nil {
+		log.Printf("[opendevdata] WARNING: failed to parse monad_devs.json: %v", err)
+		empty := make(map[string]*MonadDevRecord)
+		return empty
+	}
+
+	idx := make(map[string]*MonadDevRecord, len(records))
+	for i := range records {
+		key := strings.ToLower(records[i].Login)
+		idx[key] = &records[i]
+	}
+	monadDevIndex.Store(&idx)
+	log.Printf("[opendevdata] loaded %d Monad dev records from %s", len(idx), loadedPath)
+	return idx
 }
 
 // LookupMonadDev 根据 GitHub login 查 Monad 生态贡献数据
