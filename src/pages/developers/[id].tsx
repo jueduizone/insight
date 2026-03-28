@@ -75,8 +75,13 @@ interface GithubStats {
   eco_contributions?: number;
   // GitHub worker fields
   login?: string;
+  name?: string;
+  location?: string;
+  bio?: string;
+  company?: string;
   public_repos?: number;
   followers?: number;
+  following?: number;
   total_commits_7d?: number;
   total_commits_30d?: number;
   last_active_at?: string;
@@ -637,6 +642,25 @@ export default function DeveloperDetailPage() {
                 >
                   {githubStats ? (
                     <Space direction="vertical" style={{ width: "100%" }}>
+                      {(githubStats.followers !== undefined || githubStats.public_repos !== undefined) && (
+                        <Space size={16}>
+                          {githubStats.followers !== undefined && (
+                            <Text><Text type="secondary">关注者：</Text><Text strong>{githubStats.followers}</Text></Text>
+                          )}
+                          {githubStats.public_repos !== undefined && (
+                            <Text><Text type="secondary">公开仓库：</Text><Text strong>{githubStats.public_repos}</Text></Text>
+                          )}
+                        </Space>
+                      )}
+                      {githubStats.location && (
+                        <div><Text type="secondary">地区：</Text><Text>{githubStats.location}</Text></div>
+                      )}
+                      {githubStats.company && (
+                        <div><Text type="secondary">公司：</Text><Text>{githubStats.company}</Text></div>
+                      )}
+                      {githubStats.bio && (
+                        <div><Text type="secondary">简介：</Text><Text style={{ fontSize: 12 }}>{githubStats.bio}</Text></div>
+                      )}
                       {githubStats.total_commits_7d !== undefined && (
                         <div>
                           <Text type="secondary">近7天提交：</Text>

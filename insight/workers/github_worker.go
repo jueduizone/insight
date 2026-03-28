@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"insight/models"
@@ -15,8 +16,13 @@ const GitHubAPIBase = "https://api.github.com"
 
 type GitHubStats struct {
 	Login           string   `json:"login"`
+	Name            string   `json:"name"`
+	Location        string   `json:"location"`
+	Bio             string   `json:"bio"`
+	Company         string   `json:"company"`
 	PublicRepos     int      `json:"public_repos"`
 	Followers       int      `json:"followers"`
+	Following       int      `json:"following"`
 	TotalCommits7d  int      `json:"total_commits_7d"`
 	TotalCommits30d int      `json:"total_commits_30d"`
 	ActiveRepos     []string `json:"active_repos"`
@@ -27,8 +33,13 @@ type GitHubStats struct {
 
 type githubUserResp struct {
 	Login       string `json:"login"`
+	Name        string `json:"name"`
+	Location    string `json:"location"`
+	Bio         string `json:"bio"`
+	Company     string `json:"company"`
 	PublicRepos int    `json:"public_repos"`
 	Followers   int    `json:"followers"`
+	Following   int    `json:"following"`
 }
 
 type githubEvent struct {
@@ -45,12 +56,19 @@ type githubEvent struct {
 	} `json:"payload"`
 }
 
+func getGitHubPAT() string {
+	return os.Getenv("GITHUB_PAT")
+}
+
 func githubGet(url string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "DevInsight/1.0")
+	if pat := getGitHubPAT(); pat != "" {
+		req.Header.Set("Authorization", "token "+pat)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -120,8 +138,13 @@ func FetchGitHubUser(login string) (*GitHubStats, error) {
 
 	return &GitHubStats{
 		Login:           login,
+		Name:            userInfo.Name,
+		Location:        userInfo.Location,
+		Bio:             userInfo.Bio,
+		Company:         userInfo.Company,
 		PublicRepos:     userInfo.PublicRepos,
 		Followers:       userInfo.Followers,
+		Following:       userInfo.Following,
 		TotalCommits7d:  commits7d,
 		TotalCommits30d: commits30d,
 		ActiveRepos:     activeRepos,
