@@ -70,6 +70,9 @@ interface StatsData {
   total_events: number;
   total_projects: number;
   total_records: number;
+  web3insight_count?: number;
+  has_github_count?: number;
+  has_profile_count?: number;
 }
 
 interface ScoreBucket {
@@ -412,6 +415,51 @@ export default function Home() {
                       strokeColor="#6d28d9"
                       showInfo={false}
                     />
+                  </div>
+                  <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: 12, marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>数据同步进度</Text>
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text style={{ fontSize: 12 }}>🐙 GitHub 关联</Text>
+                        <Text strong style={{ fontSize: 12 }}>
+                          {stats?.has_github_count ?? 0} / {stats?.total_users ?? 0}
+                        </Text>
+                      </div>
+                      <Progress
+                        percent={stats?.total_users ? Math.round(((stats.has_github_count ?? 0) / stats.total_users) * 100) : 0}
+                        strokeColor="#238636"
+                        showInfo={false}
+                        size="small"
+                      />
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text style={{ fontSize: 12 }}>🔍 Web3Insight 数据</Text>
+                        <Text strong style={{ fontSize: 12 }}>
+                          {stats?.web3insight_count ?? 0} / {stats?.total_users ?? 0}
+                        </Text>
+                      </div>
+                      <Progress
+                        percent={stats?.total_users ? Math.round(((stats.web3insight_count ?? 0) / stats.total_users) * 100) : 0}
+                        strokeColor="#7c3aed"
+                        showInfo={false}
+                        size="small"
+                      />
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text style={{ fontSize: 12 }}>🤖 AI 画像生成</Text>
+                        <Text strong style={{ fontSize: 12 }}>
+                          {stats?.has_profile_count ?? 0} / {stats?.total_users ?? 0}
+                        </Text>
+                      </div>
+                      <Progress
+                        percent={stats?.total_users ? Math.round(((stats.has_profile_count ?? 0) / stats.total_users) * 100) : 0}
+                        strokeColor="#f59e0b"
+                        showInfo={false}
+                        size="small"
+                      />
+                    </div>
                   </div>
                 </Space>
               </Spin>

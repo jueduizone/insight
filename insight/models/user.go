@@ -198,3 +198,18 @@ func GetUsersWithoutProfile(limit int) ([]User, error) {
 		Limit(limit).Find(&users).Error
 	return users, err
 }
+
+func CountUsersWithWeb3Insight() (int64, error) {
+	var count int64
+	return count, db.Model(&User{}).Where("role = 'member' AND web3insight_id IS NOT NULL AND web3insight_id != ''").Count(&count).Error
+}
+
+func CountUsersWithGithub() (int64, error) {
+	var count int64
+	return count, db.Model(&User{}).Where("role = 'member' AND github != ''").Count(&count).Error
+}
+
+func CountUsersWithProfile() (int64, error) {
+	var count int64
+	return count, db.Model(&User{}).Where("role = 'member' AND notes IS NOT NULL AND notes != ''").Count(&count).Error
+}
