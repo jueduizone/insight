@@ -54,8 +54,25 @@ func QueryEvents(c *gin.Context) {
 		return
 	}
 
+	// 附加每个活动的统计数据
+	type EventWithStats struct {
+		models.ActivityEvent
+		ParticipantCount int `json:"participant_count"`
+		AwardedCount     int `json:"awarded_count"`
+	}
+	result := make([]EventWithStats, 0, len(events))
+	for _, e := range events {
+		pCount, _ := models.GetActivityRecordCountByEventID(e.ID)
+		aCount, _ := models.GetAwardedCountByEventID(e.ID)
+		result = append(result, EventWithStats{
+			ActivityEvent:    e,
+			ParticipantCount: int(pCount),
+			AwardedCount:     int(aCount),
+		})
+	}
+
 	utils.SuccessResponse(c, http.StatusOK, "Success", gin.H{
-		"events":    events,
+		"events":    result,
 		"total":     total,
 		"page":      filter.Page,
 		"page_size": filter.PageSize,

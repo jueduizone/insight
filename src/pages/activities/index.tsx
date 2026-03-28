@@ -40,6 +40,8 @@ interface ActivityEvent {
   start_date: string;
   end_date: string;
   description: string;
+  participant_count?: number;
+  awarded_count?: number;
 }
 
 interface EventsData {
@@ -439,6 +441,24 @@ export default function ActivitiesPage() {
         d && !d.startsWith("0001-")
           ? new Date(d).toLocaleDateString("zh-CN")
           : "—",
+    },
+    {
+      title: "参与人数",
+      dataIndex: "participant_count",
+      key: "participant_count",
+      width: 90,
+      render: (v: number) => v > 0 ? <Text strong style={{ color: "#7c3aed" }}>{v}</Text> : <Text type="secondary">—</Text>,
+    },
+    {
+      title: "获奖人数",
+      dataIndex: "awarded_count",
+      key: "awarded_count",
+      width: 90,
+      render: (v: number, record: ActivityEvent) => {
+        if (!record.participant_count || record.participant_count === 0) return <Text type="secondary">—</Text>;
+        const rate = v > 0 ? ` (${((v / record.participant_count) * 100).toFixed(0)}%)` : "";
+        return v > 0 ? <Text>{v}{rate}</Text> : <Text type="secondary">—</Text>;
+      },
     },
     {
       title: "描述",

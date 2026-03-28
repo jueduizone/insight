@@ -80,10 +80,17 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 	return callZenmux("gpt-4o-mini", 500, 0.3, systemPrompt, userPrompt)
 }
 
-// GenerateProfile uses gpt-4o-mini to generate a developer profile summary.
+// GenerateProfile uses gpt-4o-mini to generate a structured developer profile.
 func GenerateProfile(prompt string) (string, error) {
 	return callZenmux("gpt-4o-mini", 800, 0.7,
-		"你是 Monad 生态运营助手，根据开发者的活动参与信息生成简洁的开发者画像，用中文，100-200字，重点描述：技术背景、参与活动情况、已有项目、对 Monad/Web3 的兴趣方向。",
+		`你是 Monad 生态开发者运营助手，根据提供的开发者信息生成结构化画像。
+严格按以下格式输出，每项不超过30字，无法判断时填"未知"：
+
+【技术背景】主要技术栈或方向（如 Solidity/EVM/全栈/前端/Web3新手等）
+【参与情况】参加活动次数及时间范围
+【项目经历】有/无，代表项目名（如有）
+【Monad意向】强/中/弱（根据描述和参与度判断）
+【运营建议】值得重点跟进/普通维护/待激活（一句话说明原因）`,
 		prompt,
 	)
 }

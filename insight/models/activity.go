@@ -159,6 +159,12 @@ func GetActivityRecordCountByEventID(eventID uint) (int64, error) {
 	return count, err
 }
 
+func GetAwardedCountByEventID(eventID uint) (int64, error) {
+	var count int64
+	err := db.Model(&ActivityRecord{}).Where("event_id = ? AND award != ''", eventID).Count(&count).Error
+	return count, err
+}
+
 func CountActivityRecordsByUserID(userID uint) (int64, error) {
 	var count int64
 	return count, db.Model(&ActivityRecord{}).Where("user_id = ?", userID).Count(&count).Error
