@@ -47,8 +47,9 @@ func generateProfilesBatch(limit int) int {
 
 	processed := 0
 	for _, u := range users {
+		processed++ // 不管成功失败都算处理过
 		if u.Github == "" && u.Intro == "" && u.MonadExperience == "" && u.ExistingProjects == "" {
-			// 数据不足，标记空画像避免重复处理
+			// 数据不足，标记避免重复处理
 			u.Notes = "（数据不足，待补充）"
 			models.UpdateUser(&u)
 			continue
