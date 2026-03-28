@@ -257,7 +257,7 @@ export default function Home() {
       color: "#7c3aed",
     },
     {
-      title: "本周新增开发者",
+      title: "新增开发者（近30天）",
       value: stats?.new_users_7d ?? 0,
       color: "#a78bfa",
     },

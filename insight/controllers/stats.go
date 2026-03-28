@@ -24,7 +24,7 @@ type StatsResponse struct {
 
 func GetStats(c *gin.Context) {
 	totalUsers, _ := models.CountUsers()
-	newUsers7d, _ := models.CountUsersCreatedAfter(time.Now().AddDate(0, 0, -7))
+	newUsers7d, _ := models.CountUsersCreatedAfter(time.Now().AddDate(0, 0, -30))
 	activeUsers, _ := models.CountActiveUsers()
 	totalEvents, _ := models.CountEvents()
 	totalProjects, _ := models.CountProjects()

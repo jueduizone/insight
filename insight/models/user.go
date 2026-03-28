@@ -219,5 +219,5 @@ func CountUsersWithGithub() (int64, error) {
 
 func CountUsersWithProfile() (int64, error) {
 	var count int64
-	return count, db.Model(&User{}).Where("role = 'member' AND notes IS NOT NULL AND notes != ''").Count(&count).Error
+	return count, db.Model(&User{}).Where("role = 'member' AND notes IS NOT NULL AND notes != '' AND notes NOT LIKE '%数据不足%'").Count(&count).Error
 }
