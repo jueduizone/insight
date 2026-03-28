@@ -399,7 +399,7 @@ func ImportCSV(c *gin.Context) {
 			created++
 		}
 
-		// Collect extra fields not in standard mapping
+		// Collect extra fields not in standard mapping (for activity record)
 		standardFields := map[string]bool{
 			"email": true, "username": true, "first_name": true, "last_name": true,
 			"github": true, "wallet_address": true, "award": true, "role": true,
@@ -416,6 +416,49 @@ func ImportCSV(c *gin.Context) {
 			}
 		}
 		extraJSON, _ := json.Marshal(extraData)
+
+		// Build extra_csv_data: ALL columns not covered by standard mapping (including unmapped headers)
+		// Key = original CSV column header, value = cell content
+		mappedCols := make(map[string]bool) // CSV column names that map to standard fields
+		for field, col := range fieldMapping {
+			if standardFields[field] {
+				mappedCols[col] = true
+			}
+		}
+		extraCSV := make(map[string]string)
+		for _, h := range headers {
+			if !mappedCols[h] {
+				idx, ok := colIndex[h]
+				if ok && idx < len(row) {
+					v := strings.TrimSpace(row[idx])
+					if v != "" {
+						extraCSV[h] = v
+					}
+				}
+			}
+		}
+		extraCSVJSON, _ := json.Marshal(extraCSV)
+
+		// Persist extra_csv_data to user record (merge with existing)
+		if len(extraCSV) > 0 {
+			if existingUser != nil {
+				// Merge: existing extra_csv_data + new values (new wins on conflict)
+				merged_extra := make(map[string]string)
+				if len(existingUser.ExtraCSVData) > 0 {
+					_ = json.Unmarshal(existingUser.ExtraCSVData, &merged_extra)
+				}
+				for k, v := range extraCSV {
+					if v != "" {
+						merged_extra[k] = v
+					}
+				}
+				if b, err := json.Marshal(merged_extra); err == nil {
+					models.UpdateUserExtraCSVData(userID, b)
+				}
+			} else {
+				models.UpdateUserExtraCSVData(userID, extraCSVJSON)
+			}
+		}
 
 		record := models.ActivityRecord{
 			UserID:    userID,

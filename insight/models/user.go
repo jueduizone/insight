@@ -11,6 +11,7 @@ import (
 //   ALTER TABLE users ADD COLUMN projects_raw TEXT NOT NULL DEFAULT '';
 //   ALTER TABLE users ADD COLUMN projects_cleaned BOOLEAN NOT NULL DEFAULT FALSE;
 //   ALTER TABLE users ADD COLUMN projects_cleaned_at TIMESTAMP;
+//   ALTER TABLE users ADD COLUMN extra_csv_data JSONB;
 
 type User struct {
 	gorm.Model        `json:"-"`
@@ -42,6 +43,9 @@ type User struct {
 	ProjectsRaw       string         `gorm:"column:projects_raw" json:"projects_raw"`
 	ProjectsCleaned   bool           `gorm:"column:projects_cleaned;default:false" json:"projects_cleaned"`
 	ProjectsCleanedAt *time.Time     `gorm:"column:projects_cleaned_at" json:"projects_cleaned_at"`
+	// ExtraCSVData stores all CSV columns that were not mapped to standard fields,
+	// keyed by original column header. Used as supplementary AI analysis corpus.
+	ExtraCSVData      []byte         `gorm:"column:extra_csv_data;type:jsonb" json:"extra_csv_data,omitempty"`
 }
 
 func GetUserByUid(uid uint) (*User, error) {
@@ -142,6 +146,10 @@ func UpdateUserNotes(userID uint, notes string) error {
 	return db.Model(&User{}).Where("id = ?", userID).Update("notes", notes).Error
 }
 
+func UpdateUserExtraCSVData(userID uint, data []byte) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("extra_csv_data", data).Error
+}
+
 func UpdateUserWeb3Insight(userID uint, web3insightID string) error {
 	return db.Model(&User{}).Where("id = ?", userID).Update("web3insight_id", web3insightID).Error
 }
@@ -202,7 +210,7 @@ func GetUsersWithGithubNoWeb3Insight(limit int) ([]User, error) {
 func GetUsersWithoutProfile(limit int) ([]User, error) {
 	var users []User
 	err := db.Where("role = 'member' AND (notes IS NULL OR notes = '') AND id IN (SELECT DISTINCT user_id FROM activity_records)").
-		Select("id, username, github, intro, monad_experience, existing_projects, notes").
+		Select("id, username, github, intro, monad_experience, existing_projects, notes, github_stats, extra_csv_data").
 		Limit(limit).Find(&users).Error
 	return users, err
 }
