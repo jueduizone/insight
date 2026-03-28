@@ -67,6 +67,7 @@ interface User {
   role: string;
   activity_score: number;
   first_joined_at?: string;
+  github_stats?: string | object | null;
 }
 
 interface UserListData {
@@ -136,6 +137,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 type ImportStep = "upload" | "preview" | "result";
 type GithubFilter = "all" | "has" | "none";
+type ChineseFilter = "all" | "chinese" | "monad";
 
 export default function DevelopersPage() {
   const router = useRouter();
@@ -145,6 +147,7 @@ export default function DevelopersPage() {
   const [selectedGroup, setSelectedGroup] = useState<string>("All");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [githubFilter, setGithubFilter] = useState<GithubFilter>("all");
+  const [chineseFilter, setChineseFilter] = useState<ChineseFilter>("all");
   const [activityRange, setActivityRange] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -374,9 +377,22 @@ export default function DevelopersPage() {
         (activityRange === "31-60" && score >= 31 && score <= 60) ||
         (activityRange === "61+" && score > 60);
 
-      return matchSearch && matchGroup && matchTag && matchGithub && matchActivity;
+      // Parse github_stats for chinese/monad filter
+      let githubStats: { is_chinese_dev?: boolean; monad_commits?: number } = {};
+      if (u.github_stats) {
+        try {
+          const raw = typeof u.github_stats === "string" ? u.github_stats : JSON.stringify(u.github_stats);
+          githubStats = JSON.parse(raw);
+        } catch {}
+      }
+      const matchChinese =
+        chineseFilter === "all" ||
+        (chineseFilter === "chinese" && !!githubStats.is_chinese_dev) ||
+        (chineseFilter === "monad" && (githubStats.monad_commits ?? 0) > 0);
+
+      return matchSearch && matchGroup && matchTag && matchGithub && matchActivity && matchChinese;
     });
-  }, [users, search, selectedGroup, selectedTag, githubFilter, activityRange]);
+  }, [users, search, selectedGroup, selectedTag, githubFilter, activityRange, chineseFilter]);
 
   const handleCreate = async (values: {
     email: string;
@@ -823,6 +839,18 @@ export default function DevelopersPage() {
               <Option value="1-30">低活跃 (1-30)</Option>
               <Option value="31-60">中活跃 (31-60)</Option>
               <Option value="61+">高活跃 (61+)</Option>
+            </Select>
+            <Select
+              value={chineseFilter}
+              onChange={(val: ChineseFilter) => {
+                setChineseFilter(val);
+                setCurrentPage(1);
+              }}
+              style={{ width: 140 }}
+            >
+              <Option value="all">全部开发者</Option>
+              <Option value="chinese">🇨🇳 华语开发者</Option>
+              <Option value="monad">Monad 贡献者</Option>
             </Select>
           </Space>
           <div style={{ marginBottom: 8 }}>

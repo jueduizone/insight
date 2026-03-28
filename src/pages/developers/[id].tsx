@@ -86,6 +86,9 @@ interface GithubStats {
   total_commits_30d?: number;
   last_active_at?: string;
   fetched_at?: string;
+  // OpenDevData fields
+  monad_commits?: number;
+  is_chinese_dev?: boolean;
 }
 
 interface ActivityEvent {
@@ -746,15 +749,31 @@ export default function DeveloperDetailPage() {
                             type="secondary"
                             style={{ display: "block", marginBottom: 4 }}
                           >
-                            编程语言：
+                            技术栈：
                           </Text>
                           <Space wrap size={4}>
-                            {githubStats.languages!.map((lang) => (
+                            {githubStats.languages!.slice(0, 8).map((lang) => (
                               <Tag key={lang} color="geekblue">
                                 {lang}
                               </Tag>
                             ))}
                           </Space>
+                        </div>
+                      )}
+                      {(githubStats.monad_commits ?? 0) > 0 && (
+                        <div>
+                          <Text type="secondary">Monad 生态贡献：</Text>
+                          <Text strong style={{ color: "#7c3aed" }}>
+                            {githubStats.monad_commits} commits
+                          </Text>
+                          <Tag color="purple" style={{ marginLeft: 8, fontSize: 11 }}>
+                            OpenDevData
+                          </Tag>
+                        </div>
+                      )}
+                      {githubStats.is_chinese_dev && (
+                        <div>
+                          <Tag color="red" style={{ fontSize: 12 }}>🇨🇳 华语开发者</Tag>
                         </div>
                       )}
                     </Space>

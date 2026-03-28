@@ -92,7 +92,7 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, monad_experience, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score, first_joined_at, projects_raw, projects_cleaned, projects_cleaned_at")
+	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, monad_experience, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score, first_joined_at, projects_raw, projects_cleaned, projects_cleaned_at, github_stats")
 
 	// 用户名模糊查询
 	if filter.Username != "" {
