@@ -7,9 +7,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"time"
 
 	"insight/models"
+	"insight/utils"
 )
 
 const GitHubAPIBase = "https://api.github.com"
@@ -29,6 +31,9 @@ type GitHubStats struct {
 	Languages       []string `json:"languages"`
 	LastActiveAt    string   `json:"last_active_at"`
 	FetchedAt       string   `json:"fetched_at"`
+	// OpenDevData fields
+	MonadCommits    int  `json:"monad_commits,omitempty"`
+	IsChineseDev    bool `json:"is_chinese_dev,omitempty"`
 }
 
 type githubUserResp struct {
@@ -80,8 +85,38 @@ func githubGet(url string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-// FetchGitHubUser fetches basic info and recent events for a GitHub user.
+// fetchUserRepos 获取用户所有 repo 并统计语言
+func fetchUserRepos(login string) (map[string]int, error) {
+	langs := make(map[string]int)
+	page := 1
+	for page <= 5 { // 最多 500 个 repo
+		url := fmt.Sprintf("%s/users/%s/repos?per_page=100&page=%d&sort=pushed", GitHubAPIBase, login, page)
+		data, err := githubGet(url)
+		if err != nil {
+			break
+		}
+		var repos []struct {
+			Language string `json:"language"`
+		}
+		if err := json.Unmarshal(data, &repos); err != nil {
+			break
+		}
+		if len(repos) == 0 {
+			break
+		}
+		for _, r := range repos {
+			if r.Language != "" {
+				langs[r.Language]++
+			}
+		}
+		page++
+	}
+	return langs, nil
+}
+
+// FetchGitHubUser fetches comprehensive GitHub stats including languages and OpenDevData.
 func FetchGitHubUser(login string) (*GitHubStats, error) {
+	// Basic user info
 	data, err := githubGet(fmt.Sprintf("%s/users/%s", GitHubAPIBase, login))
 	if err != nil {
 		return nil, err
@@ -91,6 +126,7 @@ func FetchGitHubUser(login string) (*GitHubStats, error) {
 		return nil, err
 	}
 
+	// Events for commit activity
 	eventsData, err := githubGet(fmt.Sprintf("%s/users/%s/events/public?per_page=100", GitHubAPIBase, login))
 	if err != nil {
 		return nil, err
@@ -136,7 +172,25 @@ func FetchGitHubUser(login string) (*GitHubStats, error) {
 		activeRepos = append(activeRepos, r)
 	}
 
-	return &GitHubStats{
+	// Fetch languages
+	langMap, _ := fetchUserRepos(login)
+	languages := make([]string, 0, len(langMap))
+	type langCount struct {
+		lang  string
+		count int
+	}
+	langList := make([]langCount, 0, len(langMap))
+	for lang, count := range langMap {
+		langList = append(langList, langCount{lang, count})
+	}
+	sort.Slice(langList, func(i, j int) bool {
+		return langList[i].count > langList[j].count
+	})
+	for _, lc := range langList {
+		languages = append(languages, lc.lang)
+	}
+
+	stats := &GitHubStats{
 		Login:           login,
 		Name:            userInfo.Name,
 		Location:        userInfo.Location,
@@ -148,10 +202,24 @@ func FetchGitHubUser(login string) (*GitHubStats, error) {
 		TotalCommits7d:  commits7d,
 		TotalCommits30d: commits30d,
 		ActiveRepos:     activeRepos,
-		Languages:       []string{},
+		Languages:       languages,
 		LastActiveAt:    lastActive,
 		FetchedAt:       now.Format(time.RFC3339),
-	}, nil
+	}
+
+	// Merge OpenDevData
+	if monadDev := utils.LookupMonadDev(login); monadDev != nil {
+		stats.MonadCommits = int(monadDev.MonadCommits)
+		stats.IsChineseDev = monadDev.IsChinese
+		if !stats.IsChineseDev {
+			stats.IsChineseDev = utils.IsChineseDeveloper(userInfo.Location, monadDev.Country)
+		}
+	} else {
+		// Fallback to location-based Chinese detection
+		stats.IsChineseDev = utils.IsChineseDeveloper(userInfo.Location, "")
+	}
+
+	return stats, nil
 }
 
 // RunGitHubWorker starts a background goroutine that collects GitHub stats every 24 hours.
@@ -180,7 +248,8 @@ func collectAllUsers() {
 			if err := models.UpdateUserGithubStats(u.ID, b); err != nil {
 				log.Printf("[github_worker] failed to save stats for %s: %v", u.Github, err)
 			} else {
-				log.Printf("[github_worker] updated %s: commits7d=%d commits30d=%d", u.Github, stats.TotalCommits7d, stats.TotalCommits30d)
+				log.Printf("[github_worker] updated %s: commits7d=%d commits30d=%d langs=%d monad=%d chinese=%v",
+					u.Github, stats.TotalCommits7d, stats.TotalCommits30d, len(stats.Languages), stats.MonadCommits, stats.IsChineseDev)
 			}
 		}
 		time.Sleep(1 * time.Second)
