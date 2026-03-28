@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"insight/models"
@@ -232,6 +233,34 @@ func RunGitHubWorker() {
 	}()
 }
 
+// extractGitHubLogin 从各种格式中提取纯 login
+// 支持: "username", "https://github.com/username", "github.com/username", "id:username"
+func extractGitHubLogin(raw string) string {
+	s := strings.TrimSpace(raw)
+	// 去掉 URL 前缀
+	for _, prefix := range []string{"https://github.com/", "http://github.com/", "github.com/"} {
+		if strings.HasPrefix(strings.ToLower(s), prefix) {
+			s = s[len(prefix):]
+			break
+		}
+	}
+	// 去掉 "id:" 前缀
+	if strings.HasPrefix(s, "id:") {
+		s = s[3:]
+	}
+	// 去掉 @ 和邮件格式
+	if idx := strings.Index(s, "@"); idx != -1 {
+		s = s[idx+1:]
+		// 再去 github.com/ 部分
+		if strings.HasPrefix(s, "github.com/") {
+			s = s[len("github.com/"):]
+		}
+	}
+	// 去掉末尾的斜线
+	s = strings.TrimRight(s, "/")
+	return s
+}
+
 func collectAllUsers() {
 	users, err := models.GetAllUsersWithGithub()
 	if err != nil {
@@ -240,16 +269,20 @@ func collectAllUsers() {
 	}
 	log.Printf("[github_worker] collecting GitHub stats for %d users", len(users))
 	for _, u := range users {
-		stats, err := FetchGitHubUser(u.Github)
+		login := extractGitHubLogin(u.Github)
+		if login == "" {
+			continue
+		}
+		stats, err := FetchGitHubUser(login)
 		if err != nil {
-			log.Printf("[github_worker] failed to fetch %s: %v", u.Github, err)
+			log.Printf("[github_worker] failed to fetch %s: %v", login, err)
 		} else {
 			b, _ := json.Marshal(stats)
 			if err := models.UpdateUserGithubStats(u.ID, b); err != nil {
-				log.Printf("[github_worker] failed to save stats for %s: %v", u.Github, err)
+				log.Printf("[github_worker] failed to save stats for %s: %v", login, err)
 			} else {
 				log.Printf("[github_worker] updated %s: commits7d=%d commits30d=%d langs=%d monad=%d chinese=%v",
-					u.Github, stats.TotalCommits7d, stats.TotalCommits30d, len(stats.Languages), stats.MonadCommits, stats.IsChineseDev)
+					login, stats.TotalCommits7d, stats.TotalCommits30d, len(stats.Languages), stats.MonadCommits, stats.IsChineseDev)
 			}
 		}
 		time.Sleep(1 * time.Second)
