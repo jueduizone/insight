@@ -214,7 +214,7 @@ export default function Home() {
       .filter(
         (u) =>
           (u.activity_score || 0) === 0 &&
-          new Date(u.CreatedAt).getTime() < thirtyDaysAgo
+          new Date(u.CreatedAt ?? u.created_at ?? 0).getTime() < thirtyDaysAgo
       )
       .slice(0, 5);
   }, [users]);
@@ -368,7 +368,7 @@ export default function Home() {
 
         {/* New users trend + Contact coverage */}
         <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
-          <Col xs={24} lg={16}>
+          <Col xs={24} lg={16} style={{ display: "none" }}>
             <Card title="新增开发者趋势（最近30天）" style={CARD_STYLE}>
               <Spin spinning={statsLoading}>
                 {(weeklyReport?.new_users_trend?.length ?? 0) === 0 ? (
@@ -514,7 +514,7 @@ export default function Home() {
                           </Space>
                           <Space direction="vertical" size={0} style={{ alignItems: "flex-end" }}>
                             <Text type="secondary" style={{ fontSize: 11 }}>
-                              {new Date(dev.CreatedAt).toLocaleDateString("zh-CN")} 加入
+                              {new Date(dev.CreatedAt ?? dev.created_at ?? 0).toLocaleDateString("zh-CN")} 加入
                             </Text>
                             <Text style={{ fontSize: 11, color: "#7c3aed" }}>
                               点击查看
@@ -595,9 +595,9 @@ export default function Home() {
           </Spin>
         </Card>
 
-        {/* Bottom: Activity TOP 10 */}
+        {/* Bottom: Talent TOP 10 */}
         <Card
-          title={`活跃度 TOP ${top10.length} 开发者`}
+          title="潜力开发者榜"
           style={{ ...CARD_STYLE, height: "auto" }}
         >
           <Spin spinning={statsLoading}>

@@ -138,6 +138,7 @@ const FIELD_LABELS: Record<string, string> = {
 type ImportStep = "upload" | "preview" | "result";
 type GithubFilter = "all" | "has" | "none";
 type ChineseFilter = "all" | "chinese" | "monad";
+type QuickFilter = "all" | "has_github" | "has_project" | "monad_contributor";
 
 export default function DevelopersPage() {
   const router = useRouter();
@@ -149,6 +150,7 @@ export default function DevelopersPage() {
   const [githubFilter, setGithubFilter] = useState<GithubFilter>("all");
   const [chineseFilter, setChineseFilter] = useState<ChineseFilter>("all");
   const [activityRange, setActivityRange] = useState<string>("all");
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Create developer modal
@@ -390,9 +392,18 @@ export default function DevelopersPage() {
         (chineseFilter === "chinese" && !!githubStats.is_chinese_dev) ||
         (chineseFilter === "monad" && (githubStats.monad_commits ?? 0) > 0);
 
-      return matchSearch && matchGroup && matchTag && matchGithub && matchActivity && matchChinese;
+      let matchQuick = true;
+      if (quickFilter === "has_github") {
+        matchQuick = !!u.github;
+      } else if (quickFilter === "has_project") {
+        matchQuick = u.projects_cleaned === true && !!(u.existing_projects?.trim());
+      } else if (quickFilter === "monad_contributor") {
+        matchQuick = (githubStats.monad_commits ?? 0) > 0;
+      }
+
+      return matchSearch && matchGroup && matchTag && matchGithub && matchActivity && matchChinese && matchQuick;
     });
-  }, [users, search, selectedGroup, selectedTag, githubFilter, activityRange, chineseFilter]);
+  }, [users, search, selectedGroup, selectedTag, githubFilter, activityRange, chineseFilter, quickFilter]);
 
   const handleCreate = async (values: {
     email: string;
@@ -698,6 +709,7 @@ export default function DevelopersPage() {
       key: "activity",
       width: 100,
       sorter: (a: User, b: User) => (a.activity_score || 0) - (b.activity_score || 0),
+      defaultSortOrder: "descend" as const,
       render: (_: unknown, record: User) => {
         const score = record.activity_score || 0;
         if (score === 0) {
@@ -802,6 +814,31 @@ export default function DevelopersPage() {
 
         {/* Search & filter */}
         <div style={{ marginBottom: 16 }}>
+          {/* Quick filter tags */}
+          <div style={{ marginBottom: 10 }}>
+            <Space size={6}>
+              {(
+                [
+                  { key: "all", label: "全部" },
+                  { key: "has_github", label: "有 GitHub" },
+                  { key: "has_project", label: "有项目" },
+                  { key: "monad_contributor", label: "Monad 贡献" },
+                ] as { key: QuickFilter; label: string }[]
+              ).map((item) => (
+                <Tag
+                  key={item.key}
+                  color={quickFilter === item.key ? "purple" : "default"}
+                  style={{ cursor: "pointer", padding: "2px 10px", fontSize: 13 }}
+                  onClick={() => {
+                    setQuickFilter(item.key);
+                    setCurrentPage(1);
+                  }}
+                >
+                  {item.label}
+                </Tag>
+              ))}
+            </Space>
+          </div>
           <Space wrap style={{ marginBottom: 12 }}>
             <Input
               placeholder="搜索姓名 / 邮箱 / GitHub"

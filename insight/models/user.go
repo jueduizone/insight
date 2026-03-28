@@ -148,7 +148,7 @@ func UpdateUserWeb3Insight(userID uint, web3insightID string) error {
 
 func GetAllUsersForScore() ([]User, error) {
 	var users []User
-	err := db.Select("id, github, github_stats, web3insight_id, notes").Find(&users).Error
+	err := db.Select("id, github, github_stats, web3insight_id, notes, projects_cleaned, existing_projects").Find(&users).Error
 	return users, err
 }
 

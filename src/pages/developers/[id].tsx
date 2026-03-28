@@ -572,9 +572,9 @@ export default function DeveloperDetailPage() {
                         </Paragraph>
                       </div>
                     )}
-                    {user.notes && (
+                    {user.notes && !user.notes.includes("数据不足") && !user.notes.includes("待补充") ? (
                       <div>
-                        <Text type="secondary">备注：</Text>
+                        <Text type="secondary">AI 画像：</Text>
                         <Paragraph
                           style={{ margin: "4px 0 0" }}
                           ellipsis={{ rows: 3, expandable: true }}
@@ -582,7 +582,14 @@ export default function DeveloperDetailPage() {
                           {user.notes}
                         </Paragraph>
                       </div>
-                    )}
+                    ) : user.notes ? (
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>AI 画像：</Text>
+                        <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 2 }}>
+                          暂无 AI 画像（数据待补充）
+                        </Text>
+                      </div>
+                    ) : null}
                     {(user.existing_projects || user.projects_raw) && (
                       <div>
                         <Text
