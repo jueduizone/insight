@@ -45,7 +45,8 @@ const { Dragger } = Upload;
 const { Option } = Select;
 
 interface User {
-  ID: number;
+  id: number;
+  ID?: number; // legacy alias
   CreatedAt: string;
   UpdatedAt: string;
   email: string;
@@ -717,7 +718,7 @@ export default function DevelopersPage() {
               type="text"
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => router.push(`/developers/${record.ID}`)}
+              onClick={() => router.push(`/developers/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="编辑">
@@ -734,7 +735,7 @@ export default function DevelopersPage() {
               size="small"
               icon={<FileAddOutlined />}
               onClick={() => {
-                setLogUserId(record.ID);
+                setLogUserId(record.id);
                 setLogOpen(true);
               }}
             />
