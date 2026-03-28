@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -27,18 +28,31 @@ var (
 func loadMonadDevIndex() map[string]*MonadDevRecord {
 	monadOnce.Do(func() {
 		monadDevIndex = make(map[string]*MonadDevRecord)
-		data, err := os.ReadFile("data/monad_devs.json")
+		// 尝试多个路径
+		paths := []string{"data/monad_devs.json", "./data/monad_devs.json", "/root/insight/insight/data/monad_devs.json"}
+		var data []byte
+		var err error
+		for _, p := range paths {
+			data, err = os.ReadFile(p)
+			if err == nil {
+				log.Printf("[opendevdata] loaded monad_devs.json from %s", p)
+				break
+			}
+		}
 		if err != nil {
+			log.Printf("[opendevdata] WARNING: could not load monad_devs.json: %v", err)
 			return
 		}
 		var records []MonadDevRecord
 		if err := json.Unmarshal(data, &records); err != nil {
+			log.Printf("[opendevdata] WARNING: failed to parse monad_devs.json: %v", err)
 			return
 		}
 		for i := range records {
 			key := strings.ToLower(records[i].Login)
 			monadDevIndex[key] = &records[i]
 		}
+		log.Printf("[opendevdata] loaded %d Monad dev records", len(monadDevIndex))
 	})
 	return monadDevIndex
 }
@@ -71,3 +85,4 @@ func IsChineseDeveloper(githubLocation string, country string) bool {
 	}
 	return false
 }
+

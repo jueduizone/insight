@@ -1,7 +1,6 @@
 package workers
 
 import (
-	"encoding/json"
 	"fmt"
 	"insight/models"
 	"insight/utils"
@@ -14,7 +13,6 @@ import (
 func RunWeb3InsightWorker() {
 	go func() {
 		time.Sleep(2 * time.Minute)
-		// 持续处理直到全部同步
 		for {
 			n := syncWeb3InsightBatch(100)
 			if n == 0 {
@@ -46,26 +44,28 @@ func syncWeb3InsightBatch(limit int) int {
 
 	synced := 0
 	for _, u := range users {
-		data, err := utils.FetchWeb3InsightUser(u.Github)
+		login := extractGitHubLogin(u.Github)
+		if login == "" {
+			// 无法提取 login，标记 not_found 避免重复处理
+			models.UpdateUserWeb3Insight(u.ID, "not_found")
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		data, err := utils.FetchWeb3InsightUser(login)
 		if err != nil {
-			log.Printf("[web3insight_worker] failed user %d (%s): %v", u.ID, u.Github, err)
-			// 标记空值避免重复请求
-			u.Web3InsightId = "not_found"
-			models.UpdateUser(&u)
+			log.Printf("[web3insight_worker] failed user %d (%s): %v", u.ID, login, err)
+			models.UpdateUserWeb3Insight(u.ID, "not_found")
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
 
-		if w3id, ok := data["web3insight_id"].(string); ok && w3id != "" {
-			u.Web3InsightId = w3id
-		} else {
-			u.Web3InsightId = "not_found"
+		w3id := "not_found"
+		if id, ok := data["web3insight_id"].(string); ok && id != "" {
+			w3id = id
 		}
-		if stats, err := json.Marshal(data); err == nil {
-			u.GithubStats = stats
-		}
-		if err := models.UpdateUser(&u); err != nil {
-			log.Printf("[web3insight_worker] failed to update user %d: %v", u.ID, err)
+		if err := models.UpdateUserWeb3Insight(u.ID, w3id); err != nil {
+			log.Printf("[web3insight_worker] failed to update web3insight_id for user %d: %v", u.ID, err)
 		} else {
 			synced++
 		}
