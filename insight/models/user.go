@@ -180,3 +180,21 @@ func MarkProjectsCleaned(userID uint, cleanedProjects string, cleanedAt time.Tim
 		"projects_cleaned_at": cleanedAt,
 	}).Error
 }
+
+// GetUsersWithGithubNoWeb3Insight returns users that have github but no web3insight_id
+func GetUsersWithGithubNoWeb3Insight(limit int) ([]User, error) {
+	var users []User
+	err := db.Where("github != '' AND (web3insight_id IS NULL OR web3insight_id = '') AND role = 'member'").
+		Select("id, github, username, web3insight_id, github_stats").
+		Limit(limit).Find(&users).Error
+	return users, err
+}
+
+// GetUsersWithoutProfile returns member users with activity records but no notes (profile)
+func GetUsersWithoutProfile(limit int) ([]User, error) {
+	var users []User
+	err := db.Where("role = 'member' AND (notes IS NULL OR notes = '') AND id IN (SELECT DISTINCT user_id FROM activity_records)").
+		Select("id, username, github, intro, monad_experience, existing_projects, notes").
+		Limit(limit).Find(&users).Error
+	return users, err
+}

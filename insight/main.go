@@ -20,6 +20,8 @@ func main() {
 	workers.RunGitHubWorker()
 	workers.RunActivityScoreWorker()
 	workers.StartProjectCleaner()
+	workers.RunWeb3InsightWorker()
+	workers.RunProfileWorker()
 
 	r := gin.Default()
 	r.Use(middlewares.Cors())
