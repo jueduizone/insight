@@ -140,7 +140,7 @@ func UpdateUserGithubStats(userID uint, stats []byte) error {
 
 func GetAllUsersForScore() ([]User, error) {
 	var users []User
-	err := db.Select("id, github_stats, web3insight_id").Find(&users).Error
+	err := db.Select("id, github, github_stats, web3insight_id, notes").Find(&users).Error
 	return users, err
 }
 

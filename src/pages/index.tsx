@@ -34,8 +34,10 @@ const CARD_STYLE: React.CSSProperties = {
 };
 
 interface User {
-  ID: number;
-  CreatedAt: string;
+  id?: number;
+  ID?: number;
+  created_at?: string;
+  CreatedAt?: string;
   email: string;
   username: string;
   avatar: string;
@@ -606,63 +608,40 @@ export default function Home() {
             ) : (
               <Row gutter={[12, 12]}>
                 {top10.map((dev, idx) => (
-                  <Col xs={24} sm={12} md={8} lg={6} xl={4} key={dev.ID}>
+                  <Col xs={12} sm={8} md={6} lg={4} xl={4} key={dev.id || dev.ID}>
                     <Card
                       size="small"
                       hoverable
                       style={{ cursor: "pointer", borderRadius: 10 }}
-                      onClick={() => router.push(`/developers/${dev.ID}`)}
+                      onClick={() => router.push(`/developers/${dev.id || dev.ID}`)}
                     >
-                      <Space direction="vertical" size={6} style={{ width: "100%" }}>
-                        <Space size={10} align="start">
-                          <Text
-                            strong
-                            style={{
-                              color: idx < 3 ? "#7c3aed" : "#6b7280",
-                              width: 18,
-                              flexShrink: 0,
-                              fontSize: 13,
-                            }}
-                          >
+                      <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                        <Space size={8} align="center">
+                          <Text strong style={{ color: idx < 3 ? "#7c3aed" : "#9ca3af", width: 20, flexShrink: 0, fontSize: 12 }}>
                             #{idx + 1}
                           </Text>
-                          <Avatar
-                            size={32}
-                            icon={<UserOutlined />}
-                            src={dev.avatar || undefined}
-                          />
-                          <div style={{ overflow: "hidden" }}>
-                            <Text
-                              strong
-                              ellipsis
-                              style={{ display: "block", maxWidth: 80 }}
-                            >
-                              {dev.username || dev.email || "—"}
-                            </Text>
-                            <Tag
-                              color="purple"
-                              style={{ fontSize: 11, marginTop: 2 }}
-                            >
-                              {dev.activity_score} 分
-                            </Tag>
-                          </div>
+                          <Avatar size={28} icon={<UserOutlined />} src={dev.avatar || undefined} />
+                          <Text strong ellipsis style={{ maxWidth: 90, fontSize: 13 }}>
+                            {dev.username || dev.email || "—"}
+                          </Text>
                         </Space>
-                        {dev.github && (
-                          <a
-                            href={`https://github.com/${dev.github}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Tag
-                              icon={<GithubOutlined />}
-                              color="default"
-                              style={{ fontSize: 11 }}
+                        <Space size={4} wrap>
+                          <Tag color="purple" style={{ fontSize: 11, margin: 0 }}>
+                            {dev.activity_score} 分
+                          </Tag>
+                          {dev.github && (
+                            <a
+                              href={dev.github.startsWith("http") ? dev.github : `https://github.com/${dev.github}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              {dev.github}
-                            </Tag>
-                          </a>
-                        )}
+                              <Tag icon={<GithubOutlined />} color="default" style={{ fontSize: 11, margin: 0, maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {(dev.github.replace(/^https?:\/\/(www\.)?github\.com\//, "")).slice(0, 12)}{(dev.github.replace(/^https?:\/\/(www\.)?github\.com\//, "")).length > 12 ? "…" : ""}
+                              </Tag>
+                            </a>
+                          )}
+                        </Space>
                       </Space>
                     </Card>
                   </Col>
