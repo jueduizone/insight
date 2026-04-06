@@ -582,25 +582,25 @@ export default function DeveloperDetailPage() {
                           {user.notes}
                         </Paragraph>
                       </div>
-                    ) : user.notes ? (
-                      <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>AI 画像：</Text>
-                        <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 2 }}>
-                          暂无 AI 画像（数据待补充）
-                        </Text>
+                    ) : (
+                      <div style={{ background: "#f9f0ff", borderRadius: 8, padding: "10px 12px" }}>
+                        <Space size={6} align="start">
+                          <span style={{ fontSize: 16 }}>🤖</span>
+                          <div>
+                            <Text style={{ fontSize: 12, color: "#7c3aed", fontWeight: 600 }}>AI 画像待生成</Text>
+                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 2 }}>
+                              {user.github ? "GitHub 数据采集完成后自动生成" : "补充 GitHub 账号后可生成开发者画像"}
+                            </Text>
+                          </div>
+                        </Space>
                       </div>
-                    ) : null}
+                    )}
                     {(user.existing_projects || user.projects_raw) && (
                       <div>
-                        <Text
-                          type="secondary"
-                          style={{ display: "block", marginBottom: 4 }}
-                        >
-                          已有项目：
-                        </Text>
                         {user.projects_cleaned === false && user.projects_raw ? (
                           // AI extraction in progress
                           <div>
+                            <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>已有项目：</Text>
                             <Text style={{ fontSize: 13, color: "#999", wordBreak: "break-all", display: "block" }}>
                               {user.projects_raw.slice(0, 100)}{user.projects_raw.length > 100 ? "…" : ""}
                             </Text>
@@ -609,22 +609,31 @@ export default function DeveloperDetailPage() {
                               <Text type="secondary" style={{ fontSize: 12 }}>AI 提取中...</Text>
                             </Space>
                           </div>
-                        ) : (
-                          // Cleaned or short text — show as tags
-                          (() => {
-                            const parts = (user.existing_projects || "").split(",").map(p => p.trim()).filter(Boolean);
-                            if (parts.length === 0) return null;
-                            return (
+                        ) : (() => {
+                          // Noise keywords: not real project names
+                          const NOISE = ["没有", "无", "暂无", "现场组队", "待定", "none", "n/a", "no", "nope", "null", "-", "—"];
+                          const parts = (user.existing_projects || "")
+                            .split(/[,，、\n]/)
+                            .map(p => p.trim())
+                            .filter(p => {
+                              if (!p || p.length < 2) return false;
+                              const lower = p.toLowerCase();
+                              return !NOISE.some(n => lower === n || lower.includes(n));
+                            });
+                          if (parts.length === 0) return null;
+                          return (
+                            <div>
+                              <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>已有项目：</Text>
                               <Space wrap size={4}>
                                 {parts.map((p) => (
-                                  <Tag key={p} color="cyan" style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {p.length > 20 ? p.slice(0, 20) + "…" : p}
+                                  <Tag key={p} color="cyan" style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {p.length > 24 ? p.slice(0, 24) + "…" : p}
                                   </Tag>
                                 ))}
                               </Space>
-                            );
-                          })()
-                        )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </Space>

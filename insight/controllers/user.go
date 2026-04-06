@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"insight/models"
 	"insight/utils"
+	"insight/workers"
 	"net/http"
 	"strconv"
 	"strings"
@@ -215,6 +216,7 @@ func GenerateUserProfile(c *gin.Context) {
 }
 
 // SyncUserWeb3Insight POST /v1/users/:id/sync-web3insight
+// Syncs both GitHub stats and Web3Insight data for a user.
 func SyncUserWeb3Insight(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -234,31 +236,40 @@ func SyncUserWeb3Insight(c *gin.Context) {
 		return
 	}
 
-	data, err := utils.FetchWeb3InsightUser(user.Github)
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch Web3Insight data", err.Error())
+	// Extract raw login from full GitHub URL if needed
+	login := user.Github
+	if idx := strings.LastIndex(login, "/"); idx >= 0 {
+		login = login[idx+1:]
+	}
+	login = strings.TrimSpace(login)
+
+	result := gin.H{}
+	synced := false
+
+	// 1. Fetch GitHub stats directly
+	if ghStats, ghErr := workers.FetchGitHubUser(login); ghErr == nil && ghStats != nil {
+		if statsJSON, mErr := json.Marshal(ghStats); mErr == nil {
+			if dbErr := models.UpdateUserGithubStats(uint(id), statsJSON); dbErr == nil {
+				result["github_stats"] = ghStats
+				synced = true
+			}
+		}
+	}
+
+	// 2. Fetch Web3Insight data (best-effort, don't fail if unavailable)
+	if w3data, w3err := utils.FetchWeb3InsightUser(login); w3err == nil && len(w3data) > 0 {
+		if w3id, ok := w3data["web3insight_id"].(string); ok && w3id != "" {
+			user.Web3InsightId = w3id
+			models.UpdateUser(user)
+		}
+		result["web3insight"] = w3data
+		synced = true
+	}
+
+	if !synced {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch data from GitHub or Web3Insight", nil)
 		return
 	}
 
-	statsJSON, err := json.Marshal(data)
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to marshal stats", err.Error())
-		return
-	}
-
-	user.GithubStats = statsJSON
-
-	// Update web3insight_id if present in the response
-	if w3id, ok := data["web3insight_id"].(string); ok && w3id != "" {
-		user.Web3InsightId = w3id
-	}
-
-	if err := models.UpdateUser(user); err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to update user", err.Error())
-		return
-	}
-
-	utils.SuccessResponse(c, http.StatusOK, "Sync successful", gin.H{
-		"github_stats": data,
-	})
+	utils.SuccessResponse(c, http.StatusOK, "Sync successful", result)
 }
