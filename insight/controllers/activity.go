@@ -686,7 +686,7 @@ func AnalyzeEvent(c *gin.Context) {
 
 要求：简洁、数据驱动、面向运营团队，每节不超过100字。`
 
-	report, err := utils.CallKimi(systemPrompt, sb.String())
+	report, err := utils.AnalyzeEvent(systemPrompt, sb.String())
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "AI analysis failed", err.Error())
 		return
