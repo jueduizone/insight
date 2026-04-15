@@ -49,7 +49,6 @@ func generateProfilesBatch(limit int) int {
 
 	processed := 0
 	for _, u := range users {
-		processed++
 
 		hasBasicInfo := u.Github != "" || u.Intro != "" || u.MonadExperience != "" || u.ExistingProjects != ""
 		hasGithubStats := len(u.GithubStats) > 0 && string(u.GithubStats) != "null"
@@ -57,7 +56,7 @@ func generateProfilesBatch(limit int) int {
 
 		if !hasBasicInfo && !hasGithubStats && !hasExtraCSV {
 			// 数据不足，标记避免重复处理
-			models.UpdateUserNotes(u.ID, "（数据不足，待补充）")
+			models.UpdateUserNotes(u.ID, models.InsufficientDataMarker)
 			continue
 		}
 
@@ -126,24 +125,51 @@ func generateProfilesBatch(limit int) int {
 			}
 		}
 
-		// Extra CSV fields (未映射到标准字段的所有原始列)
+		// Extra CSV fields —— 优先提取关键维度，其余作补充
 		if hasExtraCSV {
 			var extra map[string]string
 			if err := json.Unmarshal(u.ExtraCSVData, &extra); err == nil && len(extra) > 0 {
-				sb.WriteString("\n其他补充信息：\n")
+				// 关键字段优先展示（顺序固定，便于 AI 理解）
+				keyFields := []struct{ keys []string; label string }{
+					{[]string{"角色", "职业角色", "role", "职位", "岗位"}, "CSV角色"},
+					{[]string{"Web3经验", "web3_experience", "Web3年限", "区块链经验"}, "Web3经验"},
+					{[]string{"技术栈", "tech_stack", "技能", "skills", "技术方向"}, "技术栈"},
+					{[]string{"主要编程语言", "编程语言", "language", "languages"}, "主要语言"},
+					{[]string{"工作年限", "工作经验", "经验年限", "years_of_experience"}, "工作年限"},
+					{[]string{"所在城市", "城市", "city", "location"}, "所在城市"},
+					{[]string{"公司", "company", "雇主", "employer"}, "所在公司"},
+					{[]string{"学历", "education", "学校", "毕业院校"}, "学历"},
+					{[]string{"开源贡献", "开源经历", "open_source"}, "开源贡献"},
+					{[]string{"项目名称", "项目", "project", "代表项目"}, "代表项目"},
+				}
+				sb.WriteString("\n来自报名表的补充信息：\n")
+				printed := make(map[string]bool)
+				for _, kf := range keyFields {
+					for _, k := range kf.keys {
+						if v, ok := extra[k]; ok && strings.TrimSpace(v) != "" {
+							sb.WriteString(fmt.Sprintf("  %s: %s\n", kf.label, v))
+							printed[k] = true
+							break
+						}
+					}
+				}
+				// 剩余字段全量输出
 				for k, v := range extra {
-					if strings.TrimSpace(v) != "" {
+					if !printed[k] && strings.TrimSpace(v) != "" {
 						sb.WriteString(fmt.Sprintf("  %s: %s\n", k, v))
 					}
 				}
 			}
 		}
 
+		// 活动记录 —— 统计参会次数、获奖情况
 		sb.WriteString("\n参与活动记录：\n")
+		awardCount := 0
 		for _, r := range records {
 			sb.WriteString("- " + r.Event.Name)
 			if r.Award != "" {
 				sb.WriteString("，获奖: " + r.Award)
+				awardCount++
 			}
 			if r.Role != "" {
 				sb.WriteString("，角色: " + r.Role)
@@ -160,6 +186,10 @@ func generateProfilesBatch(limit int) int {
 				}
 			}
 			sb.WriteString("\n")
+		}
+		sb.WriteString(fmt.Sprintf("参会总次数: %d\n", len(records)))
+		if awardCount > 0 {
+			sb.WriteString(fmt.Sprintf("获奖次数: %d\n", awardCount))
 		}
 
 		profile, err := utils.GenerateProfile(sb.String())
@@ -192,4 +222,5 @@ func toFloat(v interface{}) float64 {
 	}
 	return 0
 }
+
 

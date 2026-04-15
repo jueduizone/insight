@@ -7,6 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// InsufficientDataMarker 是数据不足时写入 notes 的标记，用于跳过重复处理
+const InsufficientDataMarker = "（数据不足，待补充）"
+
 // Migration SQL (run manually):
 //   ALTER TABLE users ADD COLUMN projects_raw TEXT NOT NULL DEFAULT '';
 //   ALTER TABLE users ADD COLUMN projects_cleaned BOOLEAN NOT NULL DEFAULT FALSE;
@@ -85,10 +88,15 @@ func GetUserByEmail(email string) (*User, error) {
 
 // UserQueryFilter 用户查询过滤器
 type UserQueryFilter struct {
-	Page     int    `json:"page" form:"page"`           // 页码，默认1
-	PageSize int    `json:"page_size" form:"page_size"` // 每页数量，默认10
-	Username string `json:"username" form:"username"`   // 用户名模糊查询
-	Role     string `json:"role" form:"role"`           // 角色过滤
+	Page       int    `json:"page" form:"page"`             // 页码，默认1
+	PageSize   int    `json:"page_size" form:"page_size"`   // 每页数量，默认10
+	Username   string `json:"username" form:"username"`     // 用户名模糊查询
+	Role       string `json:"role" form:"role"`             // 角色过滤
+	SortBy     string `json:"sort_by" form:"sort_by"`       // 排序字段，默认 activity_score
+	Order      string `json:"order" form:"order"`           // 排序方向，asc/desc，默认 desc
+	Group      string `json:"group" form:"group"`           // group 精确匹配
+	HasGithub  *bool  `json:"has_github" form:"has_github"` // true=有github, false=无
+	HasProfile *bool  `json:"has_profile" form:"has_profile"` // true=有notes画像, false=无
 }
 
 // QueryUsers 查询用户列表
@@ -111,6 +119,29 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 		query = query.Where("role NOT IN ?", []string{"admin", "super_admin"})
 	}
 
+	// group 精确匹配
+	if filter.Group != "" {
+		query = query.Where("\"group\" = ?", filter.Group)
+	}
+
+	// has_github 筛选
+	if filter.HasGithub != nil {
+		if *filter.HasGithub {
+			query = query.Where("github IS NOT NULL AND github != ''")
+		} else {
+			query = query.Where("github IS NULL OR github = ''")
+		}
+	}
+
+	// has_profile 筛选
+	if filter.HasProfile != nil {
+		if *filter.HasProfile {
+			query = query.Where("notes IS NOT NULL AND notes != '' AND notes NOT LIKE '%数据不足%'")
+		} else {
+			query = query.Where("notes IS NULL OR notes = '' OR notes LIKE '%数据不足%'")
+		}
+	}
+
 	// 统计总数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -123,6 +154,24 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	if filter.PageSize <= 0 {
 		filter.PageSize = 10
 	}
+
+	// 排序：校验合法字段，防止 SQL 注入
+	allowedSortFields := map[string]string{
+		"activity_score": "activity_score",
+		"created_at":     "created_at",
+		"updated_at":     "updated_at",
+		"username":       "username",
+	}
+	sortField, ok := allowedSortFields[filter.SortBy]
+	if !ok {
+		sortField = "activity_score"
+	}
+	orderDir := "DESC"
+	if filter.Order == "asc" {
+		orderDir = "ASC"
+	}
+	orderClause := sortField + " " + orderDir + " NULLS LAST"
+	query = query.Order(orderClause)
 
 	// 计算偏移量
 	offset := (filter.Page - 1) * filter.PageSize

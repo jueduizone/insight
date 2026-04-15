@@ -70,6 +70,9 @@ func QueryUsers(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	pageSizeStr := c.DefaultQuery("page_size", "10")
 	username := c.Query("username")
+	sortBy := c.DefaultQuery("sort_by", "activity_score")
+	order := c.DefaultQuery("order", "desc")
+	group := c.Query("group")
 
 	// 转换分页参数
 	page, err := strconv.Atoi(pageStr)
@@ -82,11 +85,34 @@ func QueryUsers(c *gin.Context) {
 		pageSize = 10
 	}
 
+	// 解析 has_github bool 参数
+	var hasGithub *bool
+	if hg := c.Query("has_github"); hg != "" {
+		val, err := strconv.ParseBool(hg)
+		if err == nil {
+			hasGithub = &val
+		}
+	}
+
+	// 解析 has_profile bool 参数
+	var hasProfile *bool
+	if hp := c.Query("has_profile"); hp != "" {
+		val, err := strconv.ParseBool(hp)
+		if err == nil {
+			hasProfile = &val
+		}
+	}
+
 	// 查询用户列表
 	var filter models.UserQueryFilter
 	filter.Page = page
 	filter.PageSize = pageSize
 	filter.Username = username
+	filter.SortBy = sortBy
+	filter.Order = order
+	filter.Group = group
+	filter.HasGithub = hasGithub
+	filter.HasProfile = hasProfile
 	users, total, err := models.QueryUsers(filter)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users", err.Error())

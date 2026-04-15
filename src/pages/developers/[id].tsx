@@ -34,6 +34,21 @@ import {
 import Layout from "@/components/Layout";
 import { apiFetch } from "@/lib/api";
 
+// parseProjects: 统一解析 existing_projects 字段（与列表页共用同一逻辑）
+// 按逗号/顿号/换行分割，过滤噪声词（无/没有/暂无/none/n/a 等）
+const NOISE_WORDS = ["无", "没有", "暂无", "现场组队", "待定", "none", "n/a", "no", "nope", "null", "-", "—"];
+function parseProjects(raw?: string | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[,，、\n]/)
+    .map((s) => s.trim())
+    .filter((s) => {
+      if (!s || s.length < 2) return false;
+      const lower = s.toLowerCase();
+      return !NOISE_WORDS.some((n) => lower === n || lower === n.toLowerCase());
+    });
+}
+
 const { Title, Text, Paragraph } = Typography;
 
 interface UserDetail {
@@ -610,16 +625,7 @@ export default function DeveloperDetailPage() {
                             </Space>
                           </div>
                         ) : (() => {
-                          // Noise keywords: not real project names
-                          const NOISE = ["没有", "无", "暂无", "现场组队", "待定", "none", "n/a", "no", "nope", "null", "-", "—"];
-                          const parts = (user.existing_projects || "")
-                            .split(/[,，、\n]/)
-                            .map(p => p.trim())
-                            .filter(p => {
-                              if (!p || p.length < 2) return false;
-                              const lower = p.toLowerCase();
-                              return !NOISE.some(n => lower === n || lower.includes(n));
-                            });
+                          const parts = parseProjects(user.existing_projects);
                           if (parts.length === 0) return null;
                           return (
                             <div>

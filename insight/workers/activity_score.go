@@ -3,6 +3,7 @@ package workers
 import (
 	"encoding/json"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -10,11 +11,14 @@ import (
 )
 
 // RunActivityScoreWorker starts a background goroutine that recomputes activity scores every 24 hours.
+// It runs once immediately on startup, then every 24 hours.
 func RunActivityScoreWorker() {
 	go func() {
-		for {
+		computeAllScores()
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
 			computeAllScores()
-			time.Sleep(24 * time.Hour)
 		}
 	}()
 }
@@ -57,8 +61,8 @@ func computeAllScores() {
 				}
 				score += githubScore
 
-				// monad_score = min(25, monad_commits/20)
-				monadScore := gs.MonadCommits / 20
+				// monad_score = min(25, round(monad_commits/20.0))
+				monadScore := int(math.Round(float64(gs.MonadCommits) / 20.0))
 				if monadScore > 25 {
 					monadScore = 25
 				}

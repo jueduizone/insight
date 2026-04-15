@@ -19,6 +19,7 @@ const modelGLM = "glm-4.7"
 const modelKimi = "kimi-k2.5"
 
 // callArk is the internal helper to call the Volcengine Ark Coding Plan API (OpenAI-compatible).
+// Retries up to 2 times on timeout/network error.
 func callArk(model string, maxTokens int, temperature float64, systemPrompt, userPrompt string) (string, error) {
 	body, err := json.Marshal(map[string]interface{}{
 		"model": model,
@@ -33,52 +34,59 @@ func callArk(model string, maxTokens int, temperature float64, systemPrompt, use
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", arkURL, bytes.NewReader(body))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+arkToken)
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		req, err := http.NewRequest("POST", arkURL, bytes.NewReader(body))
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+arkToken)
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
+		client := &http.Client{Timeout: 90 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
+			continue
+		}
+		defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
+		respBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			lastErr = err
+			continue
+		}
 
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("AI API error %d: %s", resp.StatusCode, string(respBytes))
-	}
+		if resp.StatusCode >= 400 {
+			return "", fmt.Errorf("AI API error %d: %s", resp.StatusCode, string(respBytes))
+		}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBytes, &result); err != nil {
-		return "", err
-	}
+		var result map[string]interface{}
+		if err := json.Unmarshal(respBytes, &result); err != nil {
+			return "", err
+		}
 
-	choices, ok := result["choices"].([]interface{})
-	if !ok || len(choices) == 0 {
-		return "", fmt.Errorf("no choices in response")
-	}
-	choice, ok := choices[0].(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("invalid choice format")
-	}
-	msg, ok := choice["message"].(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("invalid message format")
-	}
-	content, ok := msg["content"].(string)
-	if !ok {
-		return "", fmt.Errorf("invalid content format")
-	}
+		choices, ok := result["choices"].([]interface{})
+		if !ok || len(choices) == 0 {
+			return "", fmt.Errorf("no choices in response")
+		}
+		choice, ok := choices[0].(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("invalid choice format")
+		}
+		msg, ok := choice["message"].(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("invalid message format")
+		}
+		content, ok := msg["content"].(string)
+		if !ok {
+			return "", fmt.Errorf("invalid content format")
+		}
 
-	return content, nil
+		return content, nil
+	}
+	return "", fmt.Errorf("AI request failed after 3 attempts: %v", lastErr)
 }
 
 // CallKimi uses GLM for fast, lightweight tasks (field mapping, extraction).
@@ -88,15 +96,27 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 
 // GenerateProfile uses GLM to generate a structured developer profile.
 func GenerateProfile(prompt string) (string, error) {
-	return callArk(modelGLM, 800, 0.7,
-		`你是 Monad 生态开发者运营助手，根据提供的开发者信息生成结构化画像。
-严格按以下格式输出，每项不超过30字，无法判断时填"未知"：
+	return callArk(modelGLM, 1200, 0.7,
+		`你是 Monad 生态开发者运营助手（OpenBuild 社区），根据提供的开发者信息生成结构化画像。
+严格按以下 Markdown 格式输出，不要添加额外标题或说明，无法判断的项填"未知"：
 
-【技术背景】主要技术栈或方向（如 Solidity/EVM/全栈/前端/Web3新手等）
-【参与情况】参加活动次数及时间范围
-【项目经历】有/无，代表项目名（如有）
-【Monad意向】强/中/弱（根据描述和参与度判断）
-【运营建议】值得重点跟进/普通维护/待激活（一句话说明原因）`,
+## 开发者画像
+（2-3句综合描述该开发者的背景、技能和生态参与情况）
+
+## 角色定位
+（从以下选一个最符合的：前端/后端/全栈/智能合约/产品/设计/其他）
+
+## 技术潜力 ⭐[1-5]星
+（1句理由，依据技术栈、GitHub 活跃度、语言深度）
+
+## 商业潜力 ⭐[1-5]星
+（1句理由，依据项目经验、商业意识、已有产品）
+
+## Monad 关联度 ⭐[1-5]星
+（1句理由，依据 monad_commits 数量、参会次数、Monad 相关表述）
+
+## 运营建议
+（针对 OpenBuild 运营团队的1-2条具体建议，如：拉入核心开发群/邀请分享/重点孵化/普通维护等）`,
 		prompt,
 	)
 }

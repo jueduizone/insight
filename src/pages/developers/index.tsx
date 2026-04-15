@@ -1,3 +1,18 @@
+// parseProjects: 统一解析 existing_projects 字段
+// 按逗号/顿号/换行分割，过滤噪声词
+const NOISE_WORDS = ["无", "没有", "暂无", "现场组队", "待定", "none", "n/a", "no", "nope", "null", "-", "—"];
+export function parseProjects(raw?: string | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/[,，、\n]/)
+    .map((s) => s.trim())
+    .filter((s) => {
+      if (!s || s.length < 2) return false;
+      const lower = s.toLowerCase();
+      return !NOISE_WORDS.some((n) => lower === n || lower === n.toLowerCase());
+    });
+}
+
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/router";
 import {
@@ -186,7 +201,7 @@ export default function DevelopersPage() {
     setLoading(true);
     try {
       const res = await apiFetch<UserListData>(
-        "/v1/users?page=1&page_size=500"
+        "/v1/users?page=1&page_size=500&sort_by=activity_score&order=desc"
       );
       if (res.code === 200) {
         setUsers(res.data?.users || []);
@@ -396,7 +411,7 @@ export default function DevelopersPage() {
       if (quickFilter === "has_github") {
         matchQuick = !!u.github;
       } else if (quickFilter === "has_project") {
-        matchQuick = u.projects_cleaned === true && !!(u.existing_projects?.trim());
+        matchQuick = !!(u.existing_projects?.trim()) && u.projects_cleaned !== false;
       } else if (quickFilter === "monad_contributor") {
         matchQuick = (githubStats.monad_commits ?? 0) > 0;
       }
@@ -670,7 +685,8 @@ export default function DevelopersPage() {
         }
         const val = record.existing_projects;
         if (!val) return <Text type="secondary">—</Text>;
-        const projects = val.split(",").map((s) => s.trim()).filter(Boolean);
+        const projects = parseProjects(val);
+        if (projects.length === 0) return <Text type="secondary">—</Text>;
         return (
           <Space wrap size={4}>
             {projects.slice(0, 3).map((p) => (
@@ -948,7 +964,7 @@ export default function DevelopersPage() {
         <Table
           columns={columns}
           dataSource={filteredUsers}
-          rowKey="ID"
+          rowKey={(r) => String(r.id ?? r.ID ?? r.email)}
           loading={loading}
           scroll={{ x: "max-content" }}
           pagination={{
