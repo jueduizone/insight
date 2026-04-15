@@ -513,7 +513,7 @@ export default function HackathonPage() {
               }}
             >
               {SYSTEM_FIELDS.map((field) => (
-                <Card key={field} size="small" style={{ background: "#fafafa" }}>
+                <Card key={field} size="small" style={{ background: "#2d2147" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Text style={{ width: 110, flexShrink: 0 }}>
                       {FIELD_LABELS[field]}

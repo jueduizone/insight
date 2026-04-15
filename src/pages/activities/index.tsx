@@ -804,7 +804,7 @@ export default function ActivitiesPage() {
                 <Card
                   key={field}
                   size="small"
-                  style={{ background: "#fafafa", overflow: "hidden" }}
+                  style={{ background: "#2d2147", overflow: "hidden" }}
                 >
                   <div
                     style={{

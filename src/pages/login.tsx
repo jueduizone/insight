@@ -65,7 +65,7 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        background: "#f5f5f5",
+        background: "#0f0a1e",
       }}
     >
       <Card style={{ width: 400, boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>

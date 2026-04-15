@@ -402,7 +402,7 @@ export default function DeveloperDetailPage() {
               </summary>
               <div
                 style={{
-                  background: "#f5f5f5",
+                  background: "#1f1633",
                   borderRadius: 4,
                   padding: "6px 10px",
                   marginTop: 4,
@@ -583,7 +583,7 @@ export default function DeveloperDetailPage() {
                         </Paragraph>
                       </div>
                     ) : (
-                      <div style={{ background: "#f9f0ff", borderRadius: 8, padding: "10px 12px" }}>
+                      <div style={{ background: "#2d2147", borderRadius: 8, padding: "10px 12px" }}>
                         <Space size={6} align="start">
                           <span style={{ fontSize: 16 }}>🤖</span>
                           <div>
