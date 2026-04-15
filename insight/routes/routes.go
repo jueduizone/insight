@@ -39,6 +39,7 @@ func SetupRouter(r *gin.Engine) {
 		auth.DELETE("/events/:id", controllers.DeleteEvent)
 		auth.POST("/events/:id/import", controllers.ImportCSV)
 		auth.GET("/events/:id/records", controllers.GetEventRecords)
+		auth.GET("/events/:id/analysis", controllers.AnalyzeEvent)
 
 		auth.POST("/operation-logs", controllers.CreateLog)
 		auth.GET("/operation-logs", controllers.GetLogs)

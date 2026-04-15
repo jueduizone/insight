@@ -604,3 +604,101 @@ func GetUserActivity(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Success", records)
 }
+
+// AnalyzeEvent GET /v1/events/:id/analysis
+// 对单个活动生成 AI 分析报告：参与人数、获奖分布、角色分布、开发者画像摘要等
+func AnalyzeEvent(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid ID", nil)
+		return
+	}
+
+	event, err := models.GetActivityEventByID(uint(id))
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "Event not found", nil)
+		return
+	}
+
+	// 获取参与记录（最多 500 条，够 AI 分析）
+	records, _, err := models.GetRecordsByEventID(uint(id), 1, 500)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch records", err.Error())
+		return
+	}
+
+	totalCount := len(records)
+
+	// 统计角色分布
+	roleMap := map[string]int{}
+	awardMap := map[string]int{}
+	awardedCount := 0
+	for _, r := range records {
+		if r.Role != "" {
+			roleMap[r.Role]++
+		}
+		if r.Award != "" {
+			awardMap[r.Award]++
+			awardedCount++
+		}
+	}
+
+	// 构建 AI 分析 prompt
+	var sb strings.Builder
+	sb.WriteString("活动名称：" + event.Name + "\n")
+	sb.WriteString("活动类型：" + event.Type + "\n")
+	sb.WriteString("活动平台：" + event.Platform + "\n")
+	sb.WriteString("时间：" + event.StartDate.Format("2006-01-02") + " 至 " + event.EndDate.Format("2006-01-02") + "\n")
+	sb.WriteString("活动描述：" + event.Description + "\n\n")
+	sb.WriteString("参与人数：" + strconv.Itoa(totalCount) + "\n")
+	sb.WriteString("获奖人数：" + strconv.Itoa(awardedCount) + "\n\n")
+
+	if len(roleMap) > 0 {
+		sb.WriteString("角色分布：\n")
+		for role, cnt := range roleMap {
+			sb.WriteString("  " + role + ": " + strconv.Itoa(cnt) + "人\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(awardMap) > 0 {
+		sb.WriteString("获奖情况：\n")
+		for award, cnt := range awardMap {
+			sb.WriteString("  " + award + ": " + strconv.Itoa(cnt) + "人\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	systemPrompt := `你是 Monad 生态开发者运营分析师。请根据以下活动数据生成一份简洁的分析报告。
+
+报告格式（Markdown）：
+## 活动概览
+（活动基本信息摘要，1-2句话）
+
+## 参与数据
+（参与人数、获奖率等关键指标）
+
+## 角色与获奖分布
+（角色、获奖情况分析）
+
+## 运营洞察
+（3-5条有价值的运营观察和建议，具体可操作）
+
+要求：简洁、数据驱动、面向运营团队，每节不超过100字。`
+
+	report, err := utils.CallKimi(systemPrompt, sb.String())
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "AI analysis failed", err.Error())
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "Success", gin.H{
+		"event_id":      event.ID,
+		"event_name":    event.Name,
+		"total_count":   totalCount,
+		"awarded_count": awardedCount,
+		"role_dist":     roleMap,
+		"award_dist":    awardMap,
+		"report":        report,
+	})
+}

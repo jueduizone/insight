@@ -9,11 +9,12 @@ import (
 	"time"
 )
 
-const zenmuxURL = "https://zenmux.ai/api/v1/chat/completions"
-const zenmuxToken = "sk-ss-v1-196d706809b60c6ccf68e30afa1a711ce1b834674822781bd972b3885ab640e0"
+const arkURL   = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+const arkToken = "1d3727fc-1df5-43d1-93ee-2ea2dd4e88c3"
+const arkModel = "deepseek-v3-250324"
 
-// callZenmux is the internal helper to call the Zenmux API.
-func callZenmux(model string, maxTokens int, temperature float64, systemPrompt, userPrompt string) (string, error) {
+// callArk is the internal helper to call the Volcengine Ark API (OpenAI-compatible).
+func callArk(model string, maxTokens int, temperature float64, systemPrompt, userPrompt string) (string, error) {
 	body, err := json.Marshal(map[string]interface{}{
 		"model": model,
 		"messages": []map[string]string{
@@ -27,12 +28,12 @@ func callZenmux(model string, maxTokens int, temperature float64, systemPrompt, 
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", zenmuxURL, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", arkURL, bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+zenmuxToken)
+	req.Header.Set("Authorization", "Bearer "+arkToken)
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
@@ -75,14 +76,14 @@ func callZenmux(model string, maxTokens int, temperature float64, systemPrompt, 
 	return content, nil
 }
 
-// CallKimi uses gpt-4o-mini for fast, lightweight tasks (field mapping, extraction).
+// CallKimi uses DeepSeek for fast, lightweight tasks (field mapping, extraction).
 func CallKimi(systemPrompt, userPrompt string) (string, error) {
-	return callZenmux("gpt-4o-mini", 500, 0.3, systemPrompt, userPrompt)
+	return callArk(arkModel, 500, 0.3, systemPrompt, userPrompt)
 }
 
-// GenerateProfile uses gpt-4o-mini to generate a structured developer profile.
+// GenerateProfile uses DeepSeek to generate a structured developer profile.
 func GenerateProfile(prompt string) (string, error) {
-	return callZenmux("gpt-4o-mini", 800, 0.7,
+	return callArk(arkModel, 800, 0.7,
 		`你是 Monad 生态开发者运营助手，根据提供的开发者信息生成结构化画像。
 严格按以下格式输出，每项不超过30字，无法判断时填"未知"：
 

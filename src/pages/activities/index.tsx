@@ -14,6 +14,8 @@ import {
   Card,
   Result,
   Divider,
+  ConfigProvider,
+  theme as antTheme,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -23,9 +25,63 @@ import {
   CheckCircleOutlined,
   EditOutlined,
   DeleteOutlined,
+  BarChartOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch, API_BASE } from "@/lib/api";
+
+const SENTRY_THEME = {
+  algorithm: antTheme.darkAlgorithm,
+  token: {
+    colorPrimary: "#6a5fc1",
+    colorBgContainer: "#2d2147",
+    colorBgElevated: "#1f1633",
+    colorBgLayout: "#0f0a1e",
+    colorBorder: "#362d59",
+    colorBorderSecondary: "#2a2045",
+    colorText: "#ffffff",
+    colorTextSecondary: "#a89bc4",
+    colorTextTertiary: "#7a6e9a",
+    borderRadius: 8,
+    fontFamily: "inherit",
+  },
+  components: {
+    Table: {
+      headerBg: "#2d2147",
+      rowHoverBg: "#362d59",
+      borderColor: "#362d59",
+      headerColor: "#a89bc4",
+    },
+    Modal: {
+      contentBg: "#1f1633",
+      headerBg: "#1f1633",
+      titleColor: "#ffffff",
+    },
+    Card: {
+      colorBgContainer: "#2d2147",
+    },
+    Button: {
+      colorPrimary: "#6a5fc1",
+      colorPrimaryHover: "#7c6fd4",
+    },
+    Form: {
+      labelColor: "#a89bc4",
+    },
+    Input: {
+      colorBgContainer: "#150f23",
+      colorBorder: "#362d59",
+    },
+    Select: {
+      colorBgContainer: "#150f23",
+      colorBorder: "#362d59",
+      optionSelectedBg: "#362d59",
+    },
+    Steps: {
+      colorPrimary: "#6a5fc1",
+    },
+  },
+};
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -125,6 +181,42 @@ export default function ActivitiesPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [aiMatching, setAiMatching] = useState(false);
+
+  // Analysis modal
+  interface AnalysisResult {
+    event_id: number;
+    event_name: string;
+    total_count: number;
+    awarded_count: number;
+    role_dist: Record<string, number>;
+    award_dist: Record<string, number>;
+    report: string;
+  }
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisEvent, setAnalysisEvent] = useState<ActivityEvent | null>(null);
+
+  const openAnalysis = async (event: ActivityEvent) => {
+    setAnalysisEvent(event);
+    setAnalysisResult(null);
+    setAnalysisOpen(true);
+    setAnalysisLoading(true);
+    try {
+      const res = await apiFetch<AnalysisResult>(`/v1/events/${event.id}/analysis`);
+      if (res.code === 200) {
+        setAnalysisResult(res.data);
+      } else {
+        message.error(res.message || "分析失败");
+        setAnalysisOpen(false);
+      }
+    } catch {
+      message.error("分析请求失败");
+      setAnalysisOpen(false);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchEvents(currentPage);
@@ -484,6 +576,13 @@ export default function ActivitiesPage() {
           </Button>
           <Button
             size="small"
+            icon={<BarChartOutlined />}
+            title="AI 分析"
+            style={{ borderColor: "#6a5fc1", color: "#6a5fc1" }}
+            onClick={() => openAnalysis(record)}
+          />
+          <Button
+            size="small"
             icon={<EditOutlined />}
             onClick={() => openEdit(record)}
           />
@@ -542,8 +641,9 @@ export default function ActivitiesPage() {
   };
 
   return (
+    <ConfigProvider theme={SENTRY_THEME}>
     <Layout>
-      <div>
+      <div style={{ backgroundColor: "#0f0a1e", minHeight: "100vh" }}>
         {/* Header */}
         <div
           style={{
@@ -819,6 +919,104 @@ export default function ActivitiesPage() {
           />
         )}
       </Modal>
+
+      {/* AI Analysis Modal */}
+      <Modal
+        title={
+          <Space>
+            <BarChartOutlined style={{ color: "#7c3aed" }} />
+            <span>AI 活动分析 — {analysisEvent?.name}</span>
+          </Space>
+        }
+        open={analysisOpen}
+        onCancel={() => setAnalysisOpen(false)}
+        footer={
+          <Button onClick={() => setAnalysisOpen(false)}>关闭</Button>
+        }
+        width={700}
+      >
+        {analysisLoading ? (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <Space direction="vertical" align="center">
+              <LoadingOutlined style={{ fontSize: 32, color: "#6a5fc1" }} />
+              <Text type="secondary">AI 正在分析中，请稍候...</Text>
+            </Space>
+          </div>
+        ) : analysisResult ? (
+          <div>
+            {/* Key metrics */}
+            <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+              <Card size="small" style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "#6a5fc1" }}>
+                  {analysisResult.total_count}
+                </div>
+                <Text type="secondary">参与人数</Text>
+              </Card>
+              <Card size="small" style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "#c2ef4e" }}>
+                  {analysisResult.awarded_count}
+                </div>
+                <Text type="secondary">获奖人数</Text>
+              </Card>
+              <Card size="small" style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "#a89bc4" }}>
+                  {analysisResult.total_count > 0
+                    ? ((analysisResult.awarded_count / analysisResult.total_count) * 100).toFixed(1)
+                    : "0"}%
+                </div>
+                <Text type="secondary">获奖率</Text>
+              </Card>
+            </div>
+
+            {/* Role distribution */}
+            {Object.keys(analysisResult.role_dist).length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <Text strong>角色分布</Text>
+                <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {Object.entries(analysisResult.role_dist).map(([role, cnt]) => (
+                    <Tag key={role} color="purple">{role}: {cnt}人</Tag>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Award distribution */}
+            {Object.keys(analysisResult.award_dist).length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <Text strong>获奖情况</Text>
+                <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {Object.entries(analysisResult.award_dist).map(([award, cnt]) => (
+                    <Tag key={award} color="gold">{award}: {cnt}人</Tag>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Divider />
+
+            {/* AI report */}
+            <div>
+              <Text strong>AI 分析报告</Text>
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "16px",
+                  background: "#150f23",
+                  borderRadius: 8,
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.8,
+                  fontSize: 14,
+                  color: "#e5e7eb",
+                  border: "1px solid #362d59",
+                }}
+              >
+                {analysisResult.report}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </Layout>
+    </ConfigProvider>
   );
 }
