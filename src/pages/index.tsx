@@ -349,7 +349,7 @@ export default function Home() {
         <Spin spinning={statsLoading}>
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
             {statCards.map((s, i) => (
-              <Col xs={24} sm={12} md={8} lg={6} xl={5} key={i}>
+              <Col xs={24} sm={12} md={8} lg={6} xl={Math.floor(24 / statCards.length)} key={i}>
                 <Card style={CARD_STYLE}>
                   <Statistic
                     title={<Text style={{ fontSize: 13 }}>{s.title}</Text>}
@@ -362,22 +362,9 @@ export default function Home() {
           </Row>
         </Spin>
 
-        {/* New users trend + Contact coverage */}
+        {/* Contact coverage + Sync progress */}
         <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
-          <Col xs={24} lg={16} style={{ display: "none" }}>
-            <Card title="新增开发者趋势（最近30天）" style={CARD_STYLE}>
-              <Spin spinning={statsLoading}>
-                {(weeklyReport?.new_users_trend?.length ?? 0) === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px 0" }}>
-                    <Text type="secondary">暂无趋势数据</Text>
-                  </div>
-                ) : (
-                  <Line {...lineConfig} height={200} />
-                )}
-              </Spin>
-            </Card>
-          </Col>
-          <Col xs={24} lg={8}>
+          <Col xs={24} lg={12}>
             <Card title="联系方式覆盖率" style={CARD_STYLE}>
               <Spin spinning={statsLoading}>
                 <Space direction="vertical" size={16} style={{ width: "100%" }}>
@@ -414,50 +401,55 @@ export default function Home() {
                       showInfo={false}
                     />
                   </div>
-                  <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: 12, marginTop: 4 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>数据同步进度</Text>
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <Text style={{ fontSize: 12 }}>🐙 GitHub 关联</Text>
-                        <Text strong style={{ fontSize: 12 }}>
-                          {stats?.has_github_count ?? 0} / {stats?.total_users ?? 0}
-                        </Text>
-                      </div>
-                      <Progress
-                        percent={stats?.total_users ? Math.round(((stats.has_github_count ?? 0) / stats.total_users) * 100) : 0}
-                        strokeColor="#238636"
-                        showInfo={false}
-                        size="small"
-                      />
+                </Space>
+              </Spin>
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title="数据同步进度" style={CARD_STYLE}>
+              <Spin spinning={statsLoading}>
+                <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12 }}>🐙 GitHub 关联</Text>
+                      <Text strong style={{ fontSize: 12 }}>
+                        {stats?.has_github_count ?? 0} / {stats?.total_users ?? 0}
+                      </Text>
                     </div>
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <Text style={{ fontSize: 12 }}>🔍 Web3Insight 数据</Text>
-                        <Text strong style={{ fontSize: 12 }}>
-                          {stats?.web3insight_count ?? 0} / {stats?.total_users ?? 0}
-                        </Text>
-                      </div>
-                      <Progress
-                        percent={stats?.total_users ? Math.round(((stats.web3insight_count ?? 0) / stats.total_users) * 100) : 0}
-                        strokeColor="#7c3aed"
-                        showInfo={false}
-                        size="small"
-                      />
+                    <Progress
+                      percent={stats?.total_users ? Math.round(((stats.has_github_count ?? 0) / stats.total_users) * 100) : 0}
+                      strokeColor="#238636"
+                      showInfo={false}
+                      size="small"
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12 }}>🔍 Web3Insight 数据</Text>
+                      <Text strong style={{ fontSize: 12 }}>
+                        {stats?.web3insight_count ?? 0} / {stats?.total_users ?? 0}
+                      </Text>
                     </div>
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <Text style={{ fontSize: 12 }}>🤖 AI 画像生成</Text>
-                        <Text strong style={{ fontSize: 12 }}>
-                          {stats?.has_profile_count ?? 0} / {stats?.total_users ?? 0}
-                        </Text>
-                      </div>
-                      <Progress
-                        percent={stats?.total_users ? Math.round(((stats.has_profile_count ?? 0) / stats.total_users) * 100) : 0}
-                        strokeColor="#f59e0b"
-                        showInfo={false}
-                        size="small"
-                      />
+                    <Progress
+                      percent={stats?.total_users ? Math.round(((stats.web3insight_count ?? 0) / stats.total_users) * 100) : 0}
+                      strokeColor="#7c3aed"
+                      showInfo={false}
+                      size="small"
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12 }}>🤖 AI 画像生成</Text>
+                      <Text strong style={{ fontSize: 12 }}>
+                        {stats?.has_profile_count ?? 0} / {stats?.total_users ?? 0}
+                      </Text>
                     </div>
+                    <Progress
+                      percent={stats?.total_users ? Math.round(((stats.has_profile_count ?? 0) / stats.total_users) * 100) : 0}
+                      strokeColor="#f59e0b"
+                      showInfo={false}
+                      size="small"
+                    />
                   </div>
                 </Space>
               </Spin>
@@ -465,20 +457,12 @@ export default function Home() {
           </Col>
         </Row>
 
-        {/* Middle Row: Chart + Warning + Events */}
+        {/* Middle Row: Warning + Events (活跃度分布图暂隐藏，数据定义待明确) */}
         <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
-          {/* Left 60%: Activity score distribution */}
-          <Col xs={24} lg={14}>
-            <Card title="开发者活跃度分布" style={CARD_STYLE}>
-              <Spin spinning={statsLoading}>
-                <Column {...columnConfig} height={260} />
-              </Spin>
-            </Card>
-          </Col>
-
-          {/* Right 40%: Warning list + Recent events */}
-          <Col xs={24} lg={10}>
-            <Space direction="vertical" size={20} style={{ width: "100%" }}>
+          {/* Warning list + Recent events full width */}
+          <Col xs={24} lg={24}>
+            <Row gutter={[20, 20]}>
+              <Col xs={24} lg={8}>
               {/* Warning list */}
               <Card
                 title={
@@ -524,6 +508,8 @@ export default function Home() {
               </Card>
 
               {/* Recent Events */}
+              </Col>
+              <Col xs={24} lg={16}>
               <Card title="最近活动" style={{ ...CARD_STYLE, height: "auto" }}>
                 <Spin spinning={statsLoading}>
                   {recentEvents.length === 0 ? (
@@ -571,7 +557,8 @@ export default function Home() {
                   )}
                 </Spin>
               </Card>
-            </Space>
+            </Col>
+            </Row>
           </Col>
         </Row>
 
