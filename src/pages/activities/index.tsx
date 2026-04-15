@@ -14,8 +14,6 @@ import {
   Card,
   Result,
   Divider,
-  ConfigProvider,
-  theme as antTheme,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -30,58 +28,6 @@ import {
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch, API_BASE } from "@/lib/api";
-
-const SENTRY_THEME = {
-  algorithm: antTheme.darkAlgorithm,
-  token: {
-    colorPrimary: "#6a5fc1",
-    colorBgContainer: "#2d2147",
-    colorBgElevated: "#1f1633",
-    colorBgLayout: "#0f0a1e",
-    colorBorder: "#362d59",
-    colorBorderSecondary: "#2a2045",
-    colorText: "#ffffff",
-    colorTextSecondary: "#a89bc4",
-    colorTextTertiary: "#7a6e9a",
-    borderRadius: 8,
-    fontFamily: "inherit",
-  },
-  components: {
-    Table: {
-      headerBg: "#2d2147",
-      rowHoverBg: "#362d59",
-      borderColor: "#362d59",
-      headerColor: "#a89bc4",
-    },
-    Modal: {
-      contentBg: "#1f1633",
-      headerBg: "#1f1633",
-      titleColor: "#ffffff",
-    },
-    Card: {
-      colorBgContainer: "#2d2147",
-    },
-    Button: {
-      colorPrimary: "#6a5fc1",
-      colorPrimaryHover: "#7c6fd4",
-    },
-    Form: {
-      labelColor: "#a89bc4",
-    },
-    Input: {
-      colorBgContainer: "#150f23",
-      colorBorder: "#362d59",
-    },
-    Select: {
-      colorBgContainer: "#150f23",
-      colorBorder: "#362d59",
-      optionSelectedBg: "#362d59",
-    },
-    Steps: {
-      colorPrimary: "#6a5fc1",
-    },
-  },
-};
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -641,7 +587,7 @@ export default function ActivitiesPage() {
   };
 
   return (
-    <ConfigProvider theme={SENTRY_THEME}>
+    <>
     <Layout>
       <div style={{ backgroundColor: "#0f0a1e", minHeight: "100vh" }}>
         {/* Header */}
@@ -1017,6 +963,6 @@ export default function ActivitiesPage() {
         ) : null}
       </Modal>
     </Layout>
-    </ConfigProvider>
+    </>
   );
 }
