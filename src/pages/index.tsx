@@ -30,6 +30,7 @@ const CARD_STYLE: React.CSSProperties = {
   borderRadius: 12,
   boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
   border: "none",
+  outline: "none",
   height: "100%",
 };
 
@@ -348,9 +349,9 @@ export default function Home() {
         {/* Stat Cards */}
         <Spin spinning={statsLoading}>
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-            {statCards.map((s, i) => (
-              <Col xs={24} sm={12} md={8} lg={6} xl={Math.floor(24 / statCards.length)} key={i}>
-                <Card style={CARD_STYLE}>
+            {statCards.map((s) => (
+              <Col xs={24} sm={12} md={8} lg={6} xl={Math.floor(24 / statCards.length)} key={s.title}>
+                <Card variant="borderless" style={CARD_STYLE}>
                   <Statistic
                     title={<Text style={{ fontSize: 13 }}>{s.title}</Text>}
                     value={s.value}

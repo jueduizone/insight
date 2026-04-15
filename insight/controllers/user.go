@@ -113,6 +113,9 @@ func QueryUsers(c *gin.Context) {
 		}
 	}
 
+	// 解析 event_status 参数
+	eventStatus := c.Query("event_status")
+
 	// 查询用户列表
 	var filter models.UserQueryFilter
 	filter.Page = page
@@ -124,6 +127,7 @@ func QueryUsers(c *gin.Context) {
 	filter.HasGithub = hasGithub
 	filter.HasProfile = hasProfile
 	filter.EventID = eventID
+	filter.EventStatus = eventStatus
 	users, total, err := models.QueryUsers(filter)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users", err.Error())

@@ -804,7 +804,7 @@ export default function ActivitiesPage() {
                 <Card
                   key={field}
                   size="small"
-                  style={{ background: "#2d2147", overflow: "hidden" }}
+                  style={{ background: "var(--bg-card-elevated)", overflow: "hidden" }}
                 >
                   <div
                     style={{
@@ -889,7 +889,7 @@ export default function ActivitiesPage() {
               <Text type="secondary" style={{ fontSize: 13 }}>
                 正在汇总参与数据并调用 AI 模型，通常需要 1–2 分钟，请耐心等待
               </Text>
-              <Text type="secondary" style={{ fontSize: 12, color: "#7c6fa0" }}>
+              <Text type="secondary" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
                 请勿关闭此窗口
               </Text>
             </Space>
@@ -911,7 +911,7 @@ export default function ActivitiesPage() {
                 <Text type="secondary">获奖人数</Text>
               </Card>
               <Card size="small" style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "#a89bc4" }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-secondary)" }}>
                   {analysisResult.total_count > 0
                     ? ((analysisResult.awarded_count / analysisResult.total_count) * 100).toFixed(1)
                     : "0"}%
@@ -953,13 +953,13 @@ export default function ActivitiesPage() {
                 style={{
                   marginTop: 12,
                   padding: "16px",
-                  background: "#150f23",
+                  background: "var(--bg-card-elevated)",
                   borderRadius: 8,
                   whiteSpace: "pre-wrap",
                   lineHeight: 1.8,
                   fontSize: 14,
-                  color: "#e5e7eb",
-                  border: "1px solid #362d59",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-color)",
                 }}
               >
                 {analysisResult.report}

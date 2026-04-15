@@ -8,6 +8,7 @@ import {
   Typography,
   Spin,
   Tag,
+  Tooltip,
 } from "antd";
 import {
   HomeOutlined,
@@ -19,10 +20,13 @@ import {
   UserOutlined,
   AppstoreOutlined,
   UploadOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const { Sider, Header, Content } = AntLayout;
 const { Text } = Typography;
@@ -34,6 +38,8 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
   const { user, token, loading, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
 
   if (loading) {
     return (
@@ -121,12 +127,12 @@ export default function Layout({ children }: LayoutProps) {
         ].find((k) => router.pathname.startsWith(k)) ?? router.pathname;
 
   return (
-    <AntLayout style={{ minHeight: "100vh", background: "#0f0a1e" }}>
+    <AntLayout style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
       <Sider
         width={220}
         style={{
-          background: "#0f0a1e",
-          borderRight: "1px solid #362d59",
+          background: "var(--bg-sidebar)",
+          borderRight: "1px solid var(--border-color)",
           overflow: "auto",
           height: "100vh",
           position: "sticky",
@@ -136,57 +142,73 @@ export default function Layout({ children }: LayoutProps) {
       >
         <div
           style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid #362d59",
+            height: 64,
+            padding: "0 20px",
+            borderBottom: "1px solid var(--border-color)",
+            display: "flex",
+            alignItems: "center",
           }}
         >
-          <Text strong style={{ fontSize: 15, color: "#a89bc4" }}>
+          <Text strong style={{ fontSize: 15, color: "var(--text-secondary)" }}>
             Monad DevInsight
           </Text>
         </div>
         <Menu
-          theme="dark"
+          theme={isDark ? "dark" : "light"}
           mode="inline"
           selectedKeys={[activeKey]}
           defaultOpenKeys={["/projects-group"]}
           items={menuItems}
-          style={{ border: "none", marginTop: 4, background: "#0f0a1e" }}
+          style={{ border: "none", marginTop: 4, background: "var(--bg-sidebar)" }}
         />
       </Sider>
-      <AntLayout style={{ background: "#0f0a1e" }}>
+      <AntLayout style={{ background: "var(--bg-primary)" }}>
         <Header
           style={{
-            background: "#1f1633",
+            background: "var(--bg-header)",
             padding: "0 24px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "flex-end",
-            borderBottom: "1px solid #362d59",
+            justifyContent: "space-between",
+            borderBottom: "1px solid var(--border-color)",
             position: "sticky",
             top: 0,
             zIndex: 10,
+            height: 64,
           }}
         >
+          <Text strong style={{ fontSize: 15, color: "var(--text-secondary)" }}>
+            Monad DevInsight
+          </Text>
           <Space size={12}>
+            <Tooltip title={isDark ? "切换到浅色" : "切换到深色"}>
+              <Button
+                type="text"
+                icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+                onClick={toggleTheme}
+                size="small"
+                style={{ color: "var(--text-secondary)" }}
+              />
+            </Tooltip>
             <Avatar
               size={32}
               icon={<UserOutlined />}
               src={user?.avatar || undefined}
             />
-            <Text style={{ color: "#ffffff" }}>{user?.username || user?.email}</Text>
+            <Text style={{ color: "var(--text-primary)" }}>{user?.username || user?.email}</Text>
             <Tag color={roleColor}>{roleLabel}</Tag>
             <Button
               type="text"
               icon={<LogoutOutlined />}
               onClick={logout}
               size="small"
-              style={{ color: "#a89bc4" }}
+              style={{ color: "var(--text-secondary)" }}
             >
               退出
             </Button>
           </Space>
         </Header>
-        <Content style={{ padding: 24, background: "#0f0a1e", minHeight: "calc(100vh - 64px)" }}>
+        <Content style={{ padding: 24, background: "var(--bg-primary)", minHeight: "calc(100vh - 64px)" }}>
           {children}
         </Content>
       </AntLayout>

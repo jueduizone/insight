@@ -167,6 +167,7 @@ export default function DevelopersPage() {
   const [activityRange, setActivityRange] = useState<string>("all");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [eventFilter, setEventFilter] = useState<number | null>(null);
+  const [eventStatusFilter, setEventStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Create developer modal
@@ -199,13 +200,15 @@ export default function DevelopersPage() {
     fetchEvents();
   }, []);
 
-  async function fetchUsers(overrideEventId?: number | null) {
+  async function fetchUsers(overrideEventId?: number | null, overrideEventStatus?: string) {
     setLoading(true);
     const eid = overrideEventId !== undefined ? overrideEventId : eventFilter;
+    const status = overrideEventStatus !== undefined ? overrideEventStatus : eventStatusFilter;
     const eventParam = eid != null ? `&event_id=${eid}` : "";
+    const statusParam = eid != null && status !== "all" ? `&event_status=${status}` : "";
     try {
       const res = await apiFetch<UserListData>(
-        `/v1/users?page=1&page_size=500&sort_by=activity_score&order=desc${eventParam}`
+        `/v1/users?page=1&page_size=500&sort_by=activity_score&order=desc${eventParam}${statusParam}`
       );
       if (res.code === 200) {
         setUsers(res.data?.users || []);
@@ -914,8 +917,9 @@ export default function DevelopersPage() {
               onChange={(val: number | "all") => {
                 const eid = val === "all" ? null : val;
                 setEventFilter(eid);
+                setEventStatusFilter("all");
                 setCurrentPage(1);
-                fetchUsers(eid);
+                fetchUsers(eid, "all");
               }}
               style={{ width: 200 }}
               loading={eventsLoading}
@@ -925,6 +929,26 @@ export default function DevelopersPage() {
                 <Option key={e.id} value={e.id}>{e.name}</Option>
               ))}
             </Select>
+            {eventFilter !== null && (
+              <Select
+                value={eventStatusFilter}
+                onChange={(val: string) => {
+                  setEventStatusFilter(val);
+                  setCurrentPage(1);
+                  fetchUsers(undefined, val);
+                }}
+                style={{ width: 160 }}
+              >
+                <Option value="all">全部状态</Option>
+                <Option value="approved">已通过</Option>
+                <Option value="UNDER_REVIEW">审核中</Option>
+                <Option value="ENROLL">已报名</Option>
+                <Option value="invited">受邀</Option>
+                <Option value="declined">已拒绝</Option>
+                <Option value="pending_approval">待审批</Option>
+                <Option value="waitlist">候补</Option>
+              </Select>
+            )}
           </Space>
           <div style={{ marginBottom: 8 }}>
             <Text type="secondary" style={{ marginRight: 8 }}>
@@ -1168,7 +1192,7 @@ export default function DevelopersPage() {
               }}
             >
               {SYSTEM_FIELDS.map((field) => (
-                <Card key={field} size="small" style={{ background: "#2d2147", overflow: "hidden" }}>
+                <Card key={field} size="small" style={{ background: "var(--bg-card-elevated)", overflow: "hidden" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Text style={{ width: 90, flexShrink: 0 }}>
                       {FIELD_LABELS[field]}

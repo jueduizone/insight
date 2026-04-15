@@ -31,6 +31,7 @@ import {
   WechatOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
+import ReactMarkdown from "react-markdown";
 import Layout from "@/components/Layout";
 import { apiFetch } from "@/lib/api";
 
@@ -408,7 +409,7 @@ export default function DeveloperDetailPage() {
               <summary
                 style={{
                   fontSize: 11,
-                  color: "#999",
+                  color: "var(--text-tertiary)",
                   cursor: "pointer",
                   userSelect: "none",
                 }}
@@ -417,7 +418,7 @@ export default function DeveloperDetailPage() {
               </summary>
               <div
                 style={{
-                  background: "#1f1633",
+                  background: "var(--bg-card-elevated)",
                   borderRadius: 4,
                   padding: "6px 10px",
                   marginTop: 4,
@@ -426,8 +427,8 @@ export default function DeveloperDetailPage() {
               >
                 {extraEntries.map(([k, v]) => (
                   <div key={k} style={{ marginBottom: 2 }}>
-                    <Text style={{ fontSize: 12, fontWeight: 600, color: "#555" }}>{k}：</Text>
-                    <Text style={{ fontSize: 12, color: "#333" }}>{String(v)}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>{k}：</Text>
+                    <Text style={{ fontSize: 12, color: "var(--text-primary)" }}>{String(v)}</Text>
                   </div>
                 ))}
               </div>
@@ -590,15 +591,12 @@ export default function DeveloperDetailPage() {
                     {user.notes && !user.notes.includes("数据不足") && !user.notes.includes("待补充") ? (
                       <div>
                         <Text type="secondary">AI 画像：</Text>
-                        <Paragraph
-                          style={{ margin: "4px 0 0" }}
-                          ellipsis={{ rows: 3, expandable: true }}
-                        >
-                          {user.notes}
-                        </Paragraph>
+                        <div className="ai-profile-md" style={{ marginTop: 4 }}>
+                          <ReactMarkdown>{user.notes}</ReactMarkdown>
+                        </div>
                       </div>
                     ) : (
-                      <div style={{ background: "#2d2147", borderRadius: 8, padding: "10px 12px" }}>
+                      <div style={{ background: "var(--bg-card-elevated)", borderRadius: 8, padding: "10px 12px" }}>
                         <Space size={6} align="start">
                           <span style={{ fontSize: 16 }}>🤖</span>
                           <div>
@@ -616,7 +614,7 @@ export default function DeveloperDetailPage() {
                           // AI extraction in progress
                           <div>
                             <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>已有项目：</Text>
-                            <Text style={{ fontSize: 13, color: "#999", wordBreak: "break-all", display: "block" }}>
+                            <Text style={{ fontSize: 13, color: "var(--text-tertiary)", wordBreak: "break-all", display: "block" }}>
                               {user.projects_raw.slice(0, 100)}{user.projects_raw.length > 100 ? "…" : ""}
                             </Text>
                             <Space size={4} style={{ marginTop: 4 }}>

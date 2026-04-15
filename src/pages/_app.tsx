@@ -1,8 +1,9 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { App, ConfigProvider, theme as antTheme } from "antd";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 
-const SENTRY_THEME = {
+const DARK_THEME = {
   algorithm: antTheme.darkAlgorithm,
   token: {
     colorPrimary: "#6a5fc1",
@@ -67,12 +68,65 @@ const SENTRY_THEME = {
   },
 };
 
-export default function AppWrapper({ Component, pageProps }: AppProps) {
+const LIGHT_THEME = {
+  algorithm: antTheme.defaultAlgorithm,
+  token: {
+    colorPrimary: "#7c3aed",
+    colorBgContainer: "#ffffff",
+    colorBgElevated: "#ffffff",
+    colorBgLayout: "#f8f9fa",
+    colorBorder: "#e0e0e0",
+    colorBorderSecondary: "#ececec",
+    colorText: "#1a1a2e",
+    colorTextSecondary: "#6b7280",
+    colorTextTertiary: "#9ca3af",
+    borderRadius: 8,
+    fontFamily: "inherit",
+  },
+  components: {
+    Table: {
+      headerBg: "#f3f0fa",
+      rowHoverBg: "#f8f4ff",
+      borderColor: "#ececec",
+      headerColor: "#6d28d9",
+    },
+    Card: {
+      colorBgContainer: "#ffffff",
+    },
+    Button: {
+      colorPrimary: "#7c3aed",
+      colorPrimaryHover: "#6d28d9",
+    },
+    Layout: {
+      siderBg: "#f0f0f5",
+      headerBg: "#ffffff",
+      bodyBg: "#f8f9fa",
+    },
+    Menu: {
+      itemBg: "#f0f0f5",
+      itemSelectedBg: "#ede9fe",
+      itemSelectedColor: "#6d28d9",
+      itemColor: "#1a1a2e",
+      itemHoverBg: "#e9e6f5",
+    },
+  },
+};
+
+function ThemedApp({ Component, pageProps }: AppProps) {
+  const { theme } = useTheme();
   return (
-    <ConfigProvider theme={SENTRY_THEME}>
+    <ConfigProvider theme={theme === "dark" ? DARK_THEME : LIGHT_THEME}>
       <App>
         <Component {...pageProps} />
       </App>
     </ConfigProvider>
+  );
+}
+
+export default function AppWrapper(props: AppProps) {
+  return (
+    <ThemeProvider>
+      <ThemedApp {...props} />
+    </ThemeProvider>
   );
 }
