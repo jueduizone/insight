@@ -97,6 +97,7 @@ type UserQueryFilter struct {
 	Group      string `json:"group" form:"group"`           // group 精确匹配
 	HasGithub  *bool  `json:"has_github" form:"has_github"` // true=有github, false=无
 	HasProfile *bool  `json:"has_profile" form:"has_profile"` // true=有notes画像, false=无
+	EventID    *uint  `json:"event_id" form:"event_id"`       // 按活动筛选，只返回参加过该活动的用户
 }
 
 // QueryUsers 查询用户列表
@@ -140,6 +141,11 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 		} else {
 			query = query.Where("notes IS NULL OR notes = '' OR notes LIKE '%数据不足%'")
 		}
+	}
+
+	// event_id 筛选：只返回参加过该活动的用户
+	if filter.EventID != nil {
+		query = query.Where("id IN (SELECT DISTINCT user_id FROM activity_records WHERE event_id = ?)", *filter.EventID)
 	}
 
 	// 统计总数

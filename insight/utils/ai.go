@@ -123,5 +123,5 @@ func GenerateProfile(prompt string) (string, error) {
 
 // AnalyzeEvent uses GLM for long-form activity analysis reports.
 func AnalyzeEvent(systemPrompt, userPrompt string) (string, error) {
-	return callArk(modelGLM, 1500, 0.5, systemPrompt, userPrompt)
+	return callArk(modelGLM, 600, 0.3, systemPrompt, userPrompt)
 }

@@ -103,6 +103,16 @@ func QueryUsers(c *gin.Context) {
 		}
 	}
 
+	// 解析 event_id 参数
+	var eventID *uint
+	if eid := c.Query("event_id"); eid != "" {
+		val, err := strconv.ParseUint(eid, 10, 64)
+		if err == nil {
+			uid := uint(val)
+			eventID = &uid
+		}
+	}
+
 	// 查询用户列表
 	var filter models.UserQueryFilter
 	filter.Page = page
@@ -113,6 +123,7 @@ func QueryUsers(c *gin.Context) {
 	filter.Group = group
 	filter.HasGithub = hasGithub
 	filter.HasProfile = hasProfile
+	filter.EventID = eventID
 	users, total, err := models.QueryUsers(filter)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch users", err.Error())

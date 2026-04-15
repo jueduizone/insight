@@ -683,22 +683,22 @@ func AnalyzeEvent(c *gin.Context) {
 		sb.WriteString("\n")
 	}
 
-	systemPrompt := `你是 Monad 生态开发者运营分析师。请根据以下活动数据生成一份简洁的分析报告。
+	systemPrompt := `你是 Monad 生态开发者运营分析师。直接输出分析报告，不要有任何思考过程或前言。
 
-报告格式（Markdown）：
+报告格式（Markdown，严格按此输出）：
 ## 活动概览
-（活动基本信息摘要，1-2句话）
+（1-2句话）
 
 ## 参与数据
-（参与人数、获奖率等关键指标）
+（关键数字，bullet list）
 
 ## 角色与获奖分布
-（角色、获奖情况分析）
+（简要分析，不超过50字）
 
 ## 运营洞察
-（3-5条有价值的运营观察和建议，具体可操作）
+（3条建议，每条一句话）
 
-要求：简洁、数据驱动、面向运营团队，每节不超过100字。`
+要求：总字数不超过300字，直接给结论，不废话。`
 
 	report, err := utils.AnalyzeEvent(systemPrompt, sb.String())
 	if err != nil {
