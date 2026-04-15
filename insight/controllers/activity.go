@@ -629,6 +629,20 @@ func AnalyzeEvent(c *gin.Context) {
 
 	totalCount := len(records)
 
+	// 没有参与数据，直接返回提示，不走 AI
+	if totalCount == 0 {
+		utils.SuccessResponse(c, http.StatusOK, "Success", gin.H{
+			"event_id":      event.ID,
+			"event_name":    event.Name,
+			"total_count":   0,
+			"awarded_count": 0,
+			"role_dist":     map[string]int{},
+			"award_dist":    map[string]int{},
+			"report":        "该活动暂无参与数据，无法生成分析报告。请先导入参与者数据后再试。",
+		})
+		return
+	}
+
 	// 统计角色分布
 	roleMap := map[string]int{}
 	awardMap := map[string]int{}
