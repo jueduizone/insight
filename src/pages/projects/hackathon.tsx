@@ -303,7 +303,7 @@ export default function HackathonPage() {
           key="import"
           type="primary"
           loading={importing}
-          style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+          style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
           onClick={handleImport}
         >
           开始导入
@@ -314,7 +314,7 @@ export default function HackathonPage() {
       <Button
         key="close"
         type="primary"
-        style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+        style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
         onClick={closeImport}
       >
         完成
@@ -427,7 +427,7 @@ export default function HackathonPage() {
             <Button
               type="primary"
               icon={<UploadOutlined />}
-              style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+              style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
               onClick={openImport}
             >
               导入 CSV
@@ -474,7 +474,7 @@ export default function HackathonPage() {
               disabled={uploading}
             >
               <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ color: "#7c3aed", fontSize: 48 }} />
+                <InboxOutlined style={{ color: "var(--accent-purple)", fontSize: 48 }} />
               </p>
               <p className="ant-upload-text">点击或拖拽 CSV 文件到此区域</p>
               <p className="ant-upload-hint">
@@ -513,7 +513,7 @@ export default function HackathonPage() {
               }}
             >
               {SYSTEM_FIELDS.map((field) => (
-                <Card key={field} size="small" style={{ background: "#2d2147" }}>
+                <Card key={field} size="small" style={{ background: "var(--bg-card-elevated)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Text style={{ width: 110, flexShrink: 0 }}>
                       {FIELD_LABELS[field]}
@@ -550,7 +550,7 @@ export default function HackathonPage() {
 
         {importStep === "result" && importResult && (
           <Result
-            icon={<CheckCircleOutlined style={{ color: "#7c3aed" }} />}
+            icon={<CheckCircleOutlined style={{ color: "var(--accent-purple)" }} />}
             title="导入成功"
             subTitle={
               <Space direction="vertical">

@@ -65,12 +65,12 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        background: "#0f0a1e",
+        background: "var(--bg-primary)",
       }}
     >
       <Card style={{ width: 400, boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <Title level={3} style={{ color: "#7c3aed", margin: 0 }}>
+          <Title level={3} style={{ color: "var(--accent-purple)", margin: 0 }}>
             Monad DevInsight
           </Title>
           <Text type="secondary">登录管理后台</Text>
@@ -99,7 +99,7 @@ export default function LoginPage() {
               htmlType="submit"
               block
               loading={loading}
-              style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+              style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
             >
               登录
             </Button>

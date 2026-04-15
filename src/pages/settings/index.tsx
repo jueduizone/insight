@@ -182,7 +182,7 @@ export default function SettingsPage() {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+            style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
             onClick={() => setCreateOpen(true)}
           >
             新建管理员
@@ -261,7 +261,7 @@ export default function SettingsPage() {
             type="primary"
             htmlType="submit"
             loading={pwLoading}
-            style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+            style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
           >
             修改密码
           </Button>
@@ -302,7 +302,7 @@ export default function SettingsPage() {
         onOk={() => createForm.submit()}
         confirmLoading={createLoading}
         okButtonProps={{
-          style: { background: "#7c3aed", borderColor: "#7c3aed" },
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
         }}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateAdmin}>

@@ -447,7 +447,7 @@ export default function DeveloperDetailPage() {
           type="text"
           icon={<ArrowLeftOutlined />}
           onClick={() => router.push("/developers")}
-          style={{ marginBottom: 16, padding: 0, color: "#7c3aed" }}
+          style={{ marginBottom: 16, padding: 0, color: "var(--accent-purple)" }}
         >
           返回开发者列表
         </Button>
@@ -553,7 +553,7 @@ export default function DeveloperDetailPage() {
                       icon={<ThunderboltOutlined />}
                       loading={generatingProfile}
                       onClick={handleGenerateProfile}
-                      style={{ color: "#7c3aed", borderColor: "#7c3aed" }}
+                      style={{ color: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
                     >
                       生成 AI 画像
                     </Button>
@@ -600,7 +600,7 @@ export default function DeveloperDetailPage() {
                         <Space size={6} align="start">
                           <span style={{ fontSize: 16 }}>🤖</span>
                           <div>
-                            <Text style={{ fontSize: 12, color: "#7c3aed", fontWeight: 600 }}>AI 画像待生成</Text>
+                            <Text style={{ fontSize: 12, color: "var(--accent-purple)", fontWeight: 600 }}>AI 画像待生成</Text>
                             <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 2 }}>
                               {user.github ? "GitHub 数据采集完成后自动生成" : "补充 GitHub 账号后可生成开发者画像"}
                             </Text>
@@ -618,7 +618,7 @@ export default function DeveloperDetailPage() {
                               {user.projects_raw.slice(0, 100)}{user.projects_raw.length > 100 ? "…" : ""}
                             </Text>
                             <Space size={4} style={{ marginTop: 4 }}>
-                              <SyncOutlined spin style={{ color: "#7c3aed", fontSize: 12 }} />
+                              <SyncOutlined spin style={{ color: "var(--accent-purple)", fontSize: 12 }} />
                               <Text type="secondary" style={{ fontSize: 12 }}>AI 提取中...</Text>
                             </Space>
                           </div>
@@ -656,7 +656,7 @@ export default function DeveloperDetailPage() {
                         icon={<SyncOutlined spin={syncing} />}
                         loading={syncing}
                         onClick={handleSyncWeb3Insight}
-                        style={{ color: "#7c3aed", borderColor: "#7c3aed" }}
+                        style={{ color: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
                       >
                         同步
                       </Button>
@@ -687,7 +687,7 @@ export default function DeveloperDetailPage() {
                       {githubStats.total_commits_7d !== undefined && (
                         <div>
                           <Text type="secondary">近7天提交：</Text>
-                          <Text strong style={{ color: "#7c3aed" }}>
+                          <Text strong style={{ color: "var(--accent-purple)" }}>
                             {githubStats.total_commits_7d}
                           </Text>
                         </div>
@@ -728,7 +728,7 @@ export default function DeveloperDetailPage() {
                       {githubStats.score !== undefined && (
                         <div>
                           <Text type="secondary">综合评分：</Text>
-                          <Text strong style={{ color: "#7c3aed" }}>
+                          <Text strong style={{ color: "var(--accent-purple)" }}>
                             {githubStats.score}
                           </Text>
                         </div>
@@ -783,7 +783,7 @@ export default function DeveloperDetailPage() {
                       {(githubStats.monad_commits ?? 0) > 0 && (
                         <div>
                           <Text type="secondary">Monad 生态贡献：</Text>
-                          <Text strong style={{ color: "#7c3aed" }}>
+                          <Text strong style={{ color: "var(--accent-purple)" }}>
                             {githubStats.monad_commits} commits
                           </Text>
                           <Tag color="purple" style={{ marginLeft: 8, fontSize: 11 }}>
@@ -807,7 +807,7 @@ export default function DeveloperDetailPage() {
                             icon={<SyncOutlined />}
                             loading={syncing}
                             onClick={handleSyncWeb3Insight}
-                            style={{ color: "#7c3aed", borderColor: "#7c3aed" }}
+                            style={{ color: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
                           >
                             立即同步
                           </Button>
@@ -890,7 +890,7 @@ export default function DeveloperDetailPage() {
                   type="primary"
                   size="small"
                   icon={<PlusOutlined />}
-                  style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+                  style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
                   onClick={() => setLogModalOpen(true)}
                 >
                   添加
@@ -949,7 +949,7 @@ export default function DeveloperDetailPage() {
         onOk={() => logForm.submit()}
         confirmLoading={logSubmitting}
         okButtonProps={{
-          style: { background: "#7c3aed", borderColor: "#7c3aed" },
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
         }}
       >
         <Form form={logForm} layout="vertical" onFinish={handleAddLog}>

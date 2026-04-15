@@ -485,7 +485,7 @@ export default function ActivitiesPage() {
       dataIndex: "participant_count",
       key: "participant_count",
       width: 90,
-      render: (v: number) => v > 0 ? <Text strong style={{ color: "#7c3aed" }}>{v}</Text> : <Text type="secondary">—</Text>,
+      render: (v: number) => v > 0 ? <Text strong style={{ color: "var(--accent-purple)" }}>{v}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: "获奖人数",
@@ -515,7 +515,7 @@ export default function ActivitiesPage() {
             size="small"
             type="primary"
             ghost
-            style={{ borderColor: "#7c3aed", color: "#7c3aed" }}
+            style={{ borderColor: "var(--accent-purple)", color: "var(--accent-purple)" }}
             onClick={() => openImport(record)}
           >
             导入 CSV
@@ -524,7 +524,7 @@ export default function ActivitiesPage() {
             size="small"
             icon={<BarChartOutlined />}
             title="AI 分析"
-            style={{ borderColor: "#6a5fc1", color: "#6a5fc1" }}
+            style={{ borderColor: "var(--accent-purple)", color: "var(--accent-purple)" }}
             onClick={() => openAnalysis(record)}
           />
           <Button
@@ -567,7 +567,7 @@ export default function ActivitiesPage() {
           key="import"
           type="primary"
           loading={importing}
-          style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+          style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
           onClick={handleImport}
         >
           开始导入
@@ -578,7 +578,7 @@ export default function ActivitiesPage() {
       <Button
         key="close"
         type="primary"
-        style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+        style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
         onClick={closeImport}
       >
         完成
@@ -589,7 +589,7 @@ export default function ActivitiesPage() {
   return (
     <>
     <Layout>
-      <div style={{ backgroundColor: "#0f0a1e", minHeight: "100vh" }}>
+      <div style={{ backgroundColor: "var(--bg-primary)", minHeight: "100vh" }}>
         {/* Header */}
         <div
           style={{
@@ -605,7 +605,7 @@ export default function ActivitiesPage() {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+            style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
             onClick={() => setCreateOpen(true)}
           >
             创建活动
@@ -639,7 +639,7 @@ export default function ActivitiesPage() {
         onOk={() => createForm.submit()}
         confirmLoading={createLoading}
         okButtonProps={{
-          style: { background: "#7c3aed", borderColor: "#7c3aed" },
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
         }}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateEvent}>
@@ -689,7 +689,7 @@ export default function ActivitiesPage() {
         onOk={() => editForm.submit()}
         confirmLoading={editLoading}
         okButtonProps={{
-          style: { background: "#7c3aed", borderColor: "#7c3aed" },
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
         }}
       >
         <Form form={editForm} layout="vertical" onFinish={handleEditEvent}>
@@ -763,7 +763,7 @@ export default function ActivitiesPage() {
               disabled={uploading}
             >
               <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ color: "#7c3aed", fontSize: 48 }} />
+                <InboxOutlined style={{ color: "var(--accent-purple)", fontSize: 48 }} />
               </p>
               <p className="ant-upload-text">点击或拖拽 CSV 文件到此区域</p>
               <p className="ant-upload-hint">
@@ -850,7 +850,7 @@ export default function ActivitiesPage() {
         {/* Step 3: Result */}
         {importStep === "result" && importResult && (
           <Result
-            icon={<CheckCircleOutlined style={{ color: "#7c3aed" }} />}
+            icon={<CheckCircleOutlined style={{ color: "var(--accent-purple)" }} />}
             title="导入成功"
             subTitle={
               <Space direction="vertical">
@@ -870,7 +870,7 @@ export default function ActivitiesPage() {
       <Modal
         title={
           <Space>
-            <BarChartOutlined style={{ color: "#7c3aed" }} />
+            <BarChartOutlined style={{ color: "var(--accent-purple)" }} />
             <span>AI 活动分析 — {analysisEvent?.name}</span>
           </Space>
         }
@@ -884,7 +884,7 @@ export default function ActivitiesPage() {
         {analysisLoading ? (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
             <Space direction="vertical" align="center" size="middle">
-              <LoadingOutlined style={{ fontSize: 36, color: "#6a5fc1" }} />
+              <LoadingOutlined style={{ fontSize: 36, color: "var(--accent-purple)" }} />
               <Text strong style={{ fontSize: 15 }}>AI 正在生成分析报告...</Text>
               <Text type="secondary" style={{ fontSize: 13 }}>
                 正在汇总参与数据并调用 AI 模型，通常需要 1–2 分钟，请耐心等待
@@ -899,7 +899,7 @@ export default function ActivitiesPage() {
             {/* Key metrics */}
             <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
               <Card size="small" style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "#6a5fc1" }}>
+                <div style={{ fontSize: 28, fontWeight: 700, color: "var(--accent-purple)" }}>
                   {analysisResult.total_count}
                 </div>
                 <Text type="secondary">参与人数</Text>

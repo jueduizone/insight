@@ -234,7 +234,7 @@ export default function Home() {
     data: scoreBuckets,
     xField: "range",
     yField: "count",
-    color: "#7c3aed",
+    color: "var(--accent-purple)",
     label: {
       position: "top" as const,
     },
@@ -246,7 +246,7 @@ export default function Home() {
     data: weeklyReport?.new_users_trend ?? [],
     xField: "date",
     yField: "count",
-    color: "#7c3aed",
+    color: "var(--accent-purple)",
     point: { size: 3, shape: "circle" },
     smooth: true,
   };
@@ -255,28 +255,28 @@ export default function Home() {
     {
       title: "总开发者数",
       value: stats?.total_users ?? 0,
-      color: "#a78bfa",
+      color: "var(--accent-light)",
     },
     {
       title: "新增开发者（近30天）",
       value: stats?.new_users_7d ?? 0,
-      color: "#a78bfa",
+      color: "var(--accent-light)",
     },
     // 活跃开发者暂时隐藏，定义待明确
     {
       title: "活动总数",
       value: stats?.total_events ?? 0,
-      color: "#a78bfa",
+      color: "var(--accent-light)",
     },
     {
       title: "项目总数",
       value: stats?.total_projects ?? 0,
-      color: "#a78bfa",
+      color: "var(--accent-light)",
     },
     {
       title: "Hackathon 参与人次",
       value: stats?.total_records ?? 0,
-      color: "#a78bfa",
+      color: "var(--accent-light)",
     },
   ];
 
@@ -312,7 +312,7 @@ export default function Home() {
       key: "count",
       sorter: (a: EventFunnelItem, b: EventFunnelItem) => a.count - b.count,
       render: (count: number) => (
-        <Text strong style={{ color: "#7c3aed" }}>
+        <Text strong style={{ color: "var(--accent-purple)" }}>
           {count}
         </Text>
       ),
@@ -339,7 +339,7 @@ export default function Home() {
           <Button
             type="primary"
             icon={<FileTextOutlined />}
-            style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+            style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
             onClick={handleGenerateReport}
           >
             生成周报
@@ -376,7 +376,7 @@ export default function Home() {
                     </div>
                     <Progress
                       percent={Math.round(coverage?.github_pct ?? 0)}
-                      strokeColor="#7c3aed"
+                      strokeColor="var(--accent-purple)"
                       showInfo={false}
                     />
                   </div>
@@ -387,7 +387,7 @@ export default function Home() {
                     </div>
                     <Progress
                       percent={Math.round(coverage?.twitter_pct ?? 0)}
-                      strokeColor="#a78bfa"
+                      strokeColor="var(--accent-light)"
                       showInfo={false}
                     />
                   </div>
@@ -433,7 +433,7 @@ export default function Home() {
                     </div>
                     <Progress
                       percent={stats?.total_users ? Math.round(((stats.web3insight_count ?? 0) / stats.total_users) * 100) : 0}
-                      strokeColor="#7c3aed"
+                      strokeColor="var(--accent-purple)"
                       showInfo={false}
                       size="small"
                     />
@@ -497,7 +497,7 @@ export default function Home() {
                             <Text type="secondary" style={{ fontSize: 11 }}>
                               {new Date(dev.CreatedAt ?? dev.created_at ?? 0).toLocaleDateString("zh-CN")} 加入
                             </Text>
-                            <Text style={{ fontSize: 11, color: "#7c3aed" }}>
+                            <Text style={{ fontSize: 11, color: "var(--accent-purple)" }}>
                               点击查看
                             </Text>
                           </Space>
@@ -601,7 +601,7 @@ export default function Home() {
                     >
                       <Space direction="vertical" size={4} style={{ width: "100%" }}>
                         <Space size={8} align="center">
-                          <Text strong style={{ color: idx < 3 ? "#7c3aed" : "#9ca3af", width: 20, flexShrink: 0, fontSize: 12 }}>
+                          <Text strong style={{ color: idx < 3 ? "var(--accent-purple)" : "#9ca3af", width: 20, flexShrink: 0, fontSize: 12 }}>
                             #{idx + 1}
                           </Text>
                           <Avatar size={28} icon={<UserOutlined />} src={dev.avatar || undefined} />
@@ -652,7 +652,7 @@ export default function Home() {
           >
             复制
           </Button>,
-          <Button key="close" type="primary" style={{ background: "#7c3aed", borderColor: "#7c3aed" }} onClick={() => setReportOpen(false)}>
+          <Button key="close" type="primary" style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }} onClick={() => setReportOpen(false)}>
             关闭
           </Button>,
         ]}

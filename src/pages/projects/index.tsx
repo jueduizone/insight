@@ -334,14 +334,14 @@ export default function ProjectsPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onPressEnter={handleSearch}
-              suffix={<SearchOutlined style={{ color: "#999" }} />}
+              suffix={<SearchOutlined style={{ color: "var(--text-tertiary)" }} />}
               style={{ width: 240 }}
             />
             <Button onClick={handleSearch}>搜索</Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+              style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
               onClick={() => setCreateOpen(true)}
             >
               新增项目
@@ -374,7 +374,7 @@ export default function ProjectsPage() {
         onOk={() => createForm.submit()}
         confirmLoading={createLoading}
         okButtonProps={{
-          style: { background: "#7c3aed", borderColor: "#7c3aed" },
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
         }}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
@@ -392,7 +392,7 @@ export default function ProjectsPage() {
         onOk={() => editForm.submit()}
         confirmLoading={editLoading}
         okButtonProps={{
-          style: { background: "#7c3aed", borderColor: "#7c3aed" },
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
         }}
       >
         <Form form={editForm} layout="vertical" onFinish={handleEdit}>

@@ -544,7 +544,7 @@ export default function DevelopersPage() {
           key="import"
           type="primary"
           loading={importing}
-          style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+          style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
           onClick={handleImport}
         >
           开始导入
@@ -555,7 +555,7 @@ export default function DevelopersPage() {
       <Button
         key="close"
         type="primary"
-        style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+        style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
         onClick={closeImport}
       >
         完成
@@ -681,7 +681,7 @@ export default function DevelopersPage() {
         if (record.projects_cleaned === false && record.projects_raw) {
           return (
             <Space size={4}>
-              <SyncOutlined spin style={{ color: "#7c3aed", fontSize: 12 }} />
+              <SyncOutlined spin style={{ color: "var(--accent-purple)", fontSize: 12 }} />
               <Tooltip title={record.projects_raw}>
                 <Text style={{ fontSize: 12 }}>
                   {record.projects_raw.slice(0, 25)}…
@@ -827,7 +827,7 @@ export default function DevelopersPage() {
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+              style={{ background: "var(--accent-purple)", borderColor: "var(--accent-purple)" }}
               onClick={() => setCreateOpen(true)}
             >
               新增开发者
@@ -1032,7 +1032,7 @@ export default function DevelopersPage() {
         }}
         onOk={() => createForm.submit()}
         confirmLoading={createLoading}
-        okButtonProps={{ style: { background: "#7c3aed", borderColor: "#7c3aed" } }}
+        okButtonProps={{ style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" } }}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
           <Form.Item
@@ -1074,7 +1074,7 @@ export default function DevelopersPage() {
         }}
         onOk={() => logForm.submit()}
         confirmLoading={logLoading}
-        okButtonProps={{ style: { background: "#7c3aed", borderColor: "#7c3aed" } }}
+        okButtonProps={{ style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" } }}
       >
         <Form form={logForm} layout="vertical" onFinish={handleAddLog}>
           <Form.Item
@@ -1149,7 +1149,7 @@ export default function DevelopersPage() {
               <p className="ant-upload-drag-icon">
                 <InboxOutlined
                   style={{
-                    color: selectedEvent ? "#7c3aed" : "#d9d9d9",
+                    color: selectedEvent ? "var(--accent-purple)" : "#d9d9d9",
                     fontSize: 48,
                   }}
                 />
@@ -1231,7 +1231,7 @@ export default function DevelopersPage() {
         {/* Step 3: Result */}
         {importStep === "result" && importResult && (
           <Result
-            icon={<CheckCircleOutlined style={{ color: "#7c3aed" }} />}
+            icon={<CheckCircleOutlined style={{ color: "var(--accent-purple)" }} />}
             title="导入成功"
             subTitle={
               <Space direction="vertical">
