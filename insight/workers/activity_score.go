@@ -47,6 +47,14 @@ func computeAllScores() {
 		log.Printf("[activity_score] failed to get users: %v", err)
 		return
 	}
+
+	// 批量获取活动参与次数
+	eventCounts, err := models.GetUserEventCounts()
+	if err != nil {
+		log.Printf("[activity_score] failed to get event counts: %v", err)
+		eventCounts = map[uint]int{}
+	}
+
 	log.Printf("[activity_score] computing scores for %d users", len(users))
 	for _, u := range users {
 		score := 0
@@ -85,6 +93,16 @@ func computeAllScores() {
 		// project_score = 20 if projects_cleaned=true AND existing_projects has real content
 		if u.ProjectsCleaned && hasRealProjectContent(u.ExistingProjects) {
 			score += 20
+		}
+
+		// event_score = min(20, event_count * 5)
+		// 每参加一个活动 +5 分，上限 20 分
+		if ec, ok := eventCounts[u.ID]; ok && ec > 0 {
+			eventScore := ec * 5
+			if eventScore > 20 {
+				eventScore = 20
+			}
+			score += eventScore
 		}
 
 		if err := models.UpdateUserActivityScore(u.ID, score); err != nil {

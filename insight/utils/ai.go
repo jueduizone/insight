@@ -97,7 +97,7 @@ func CallKimi(systemPrompt, userPrompt string) (string, error) {
 // GenerateProfile uses GLM to generate a structured developer profile.
 func GenerateProfile(prompt string) (string, error) {
 	return callArk(modelGLM, 1200, 0.7,
-		`你是 Monad 生态开发者运营助手（OpenBuild 社区），根据提供的开发者信息生成结构化画像。
+		`你是 Monad 生态开发者运营助手，根据提供的开发者信息生成结构化画像。
 严格按以下 Markdown 格式输出，不要添加额外标题或说明，无法判断的项填"未知"：
 
 ## 开发者画像
@@ -116,7 +116,7 @@ func GenerateProfile(prompt string) (string, error) {
 （1句理由，依据 monad_commits 数量、参会次数、Monad 相关表述）
 
 ## 运营建议
-（针对 OpenBuild 运营团队的1-2条具体建议，如：拉入核心开发群/邀请分享/重点孵化/普通维护等）`,
+（针对 Monad 生态运营团队的1-2条具体建议，如：邀请参与 Monad 生态项目/重点孵化/邀请线下活动/普通维护等）`,
 		prompt,
 	)
 }

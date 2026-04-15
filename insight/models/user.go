@@ -215,6 +215,24 @@ func GetAllUsersForScore() ([]User, error) {
 	return users, err
 }
 
+// GetUserEventCounts returns a map of user_id -> number of distinct events attended.
+func GetUserEventCounts() (map[uint]int, error) {
+	type result struct {
+		UserID     uint
+		EventCount int
+	}
+	var rows []result
+	err := db.Raw("SELECT user_id, COUNT(DISTINCT event_id) as event_count FROM activity_records GROUP BY user_id").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[uint]int, len(rows))
+	for _, r := range rows {
+		m[r.UserID] = r.EventCount
+	}
+	return m, nil
+}
+
 func UpdateUserActivityScore(userID uint, score int) error {
 	return db.Model(&User{}).Where("id = ?", userID).Update("activity_score", score).Error
 }
