@@ -121,12 +121,12 @@ export default function Layout({ children }: LayoutProps) {
         ].find((k) => router.pathname.startsWith(k)) ?? router.pathname;
 
   return (
-    <AntLayout style={{ minHeight: "100vh" }}>
+    <AntLayout style={{ minHeight: "100vh", background: "#0f0a1e" }}>
       <Sider
         width={220}
         style={{
-          background: "#fff",
-          borderRight: "1px solid #f0f0f0",
+          background: "#0f0a1e",
+          borderRight: "1px solid #362d59",
           overflow: "auto",
           height: "100vh",
           position: "sticky",
@@ -137,30 +137,31 @@ export default function Layout({ children }: LayoutProps) {
         <div
           style={{
             padding: "16px 20px",
-            borderBottom: "1px solid #f0f0f0",
+            borderBottom: "1px solid #362d59",
           }}
         >
-          <Text strong style={{ fontSize: 15, color: "#7c3aed" }}>
+          <Text strong style={{ fontSize: 15, color: "#a89bc4" }}>
             Monad DevInsight
           </Text>
         </div>
         <Menu
+          theme="dark"
           mode="inline"
           selectedKeys={[activeKey]}
           defaultOpenKeys={["/projects-group"]}
           items={menuItems}
-          style={{ border: "none", marginTop: 4 }}
+          style={{ border: "none", marginTop: 4, background: "#0f0a1e" }}
         />
       </Sider>
-      <AntLayout>
+      <AntLayout style={{ background: "#0f0a1e" }}>
         <Header
           style={{
-            background: "#fff",
+            background: "#1f1633",
             padding: "0 24px",
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            borderBottom: "1px solid #f0f0f0",
+            borderBottom: "1px solid #362d59",
             position: "sticky",
             top: 0,
             zIndex: 10,
@@ -172,19 +173,20 @@ export default function Layout({ children }: LayoutProps) {
               icon={<UserOutlined />}
               src={user?.avatar || undefined}
             />
-            <Text>{user?.username || user?.email}</Text>
+            <Text style={{ color: "#ffffff" }}>{user?.username || user?.email}</Text>
             <Tag color={roleColor}>{roleLabel}</Tag>
             <Button
               type="text"
               icon={<LogoutOutlined />}
               onClick={logout}
               size="small"
+              style={{ color: "#a89bc4" }}
             >
               退出
             </Button>
           </Space>
         </Header>
-        <Content style={{ padding: 24, background: "#f5f5f5", minHeight: "calc(100vh - 64px)" }}>
+        <Content style={{ padding: 24, background: "#0f0a1e", minHeight: "calc(100vh - 64px)" }}>
           {children}
         </Content>
       </AntLayout>
