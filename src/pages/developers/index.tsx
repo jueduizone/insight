@@ -166,6 +166,7 @@ export default function DevelopersPage() {
   const [chineseFilter, setChineseFilter] = useState<ChineseFilter>("all");
   const [activityRange, setActivityRange] = useState<string>("all");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+  const [eventFilter, setEventFilter] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Create developer modal
@@ -195,13 +196,16 @@ export default function DevelopersPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchEvents();
   }, []);
 
-  async function fetchUsers() {
+  async function fetchUsers(overrideEventId?: number | null) {
     setLoading(true);
+    const eid = overrideEventId !== undefined ? overrideEventId : eventFilter;
+    const eventParam = eid != null ? `&event_id=${eid}` : "";
     try {
       const res = await apiFetch<UserListData>(
-        "/v1/users?page=1&page_size=500&sort_by=activity_score&order=desc"
+        `/v1/users?page=1&page_size=500&sort_by=activity_score&order=desc${eventParam}`
       );
       if (res.code === 200) {
         setUsers(res.data?.users || []);
@@ -904,6 +908,22 @@ export default function DevelopersPage() {
               <Option value="all">全部开发者</Option>
               <Option value="chinese">🇨🇳 华语开发者</Option>
               <Option value="monad">Monad 贡献者</Option>
+            </Select>
+            <Select
+              value={eventFilter ?? "all"}
+              onChange={(val: number | "all") => {
+                const eid = val === "all" ? null : val;
+                setEventFilter(eid);
+                setCurrentPage(1);
+                fetchUsers(eid);
+              }}
+              style={{ width: 200 }}
+              loading={eventsLoading}
+            >
+              <Option value="all">全部活动</Option>
+              {events.map((e) => (
+                <Option key={e.id} value={e.id}>{e.name}</Option>
+              ))}
             </Select>
           </Space>
           <div style={{ marginBottom: 8 }}>
