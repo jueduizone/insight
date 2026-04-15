@@ -254,32 +254,28 @@ export default function Home() {
     {
       title: "总开发者数",
       value: stats?.total_users ?? 0,
-      color: "#7c3aed",
+      color: "#a78bfa",
     },
     {
       title: "新增开发者（近30天）",
       value: stats?.new_users_7d ?? 0,
       color: "#a78bfa",
     },
-    {
-      title: "活跃开发者",
-      value: stats?.active_users ?? 0,
-      color: "#6d28d9",
-    },
+    // 活跃开发者暂时隐藏，定义待明确
     {
       title: "活动总数",
       value: stats?.total_events ?? 0,
-      color: "#5b21b6",
+      color: "#a78bfa",
     },
     {
       title: "项目总数",
       value: stats?.total_projects ?? 0,
-      color: "#4c1d95",
+      color: "#a78bfa",
     },
     {
       title: "Hackathon 参与人次",
       value: stats?.total_records ?? 0,
-      color: "#3b0764",
+      color: "#a78bfa",
     },
   ];
 
@@ -353,7 +349,7 @@ export default function Home() {
         <Spin spinning={statsLoading}>
           <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
             {statCards.map((s, i) => (
-              <Col xs={24} sm={12} lg={4} key={i}>
+              <Col xs={24} sm={12} md={8} lg={6} xl={5} key={i}>
                 <Card style={CARD_STYLE}>
                   <Statistic
                     title={<Text style={{ fontSize: 13 }}>{s.title}</Text>}
