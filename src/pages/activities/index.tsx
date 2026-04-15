@@ -883,9 +883,15 @@ export default function ActivitiesPage() {
       >
         {analysisLoading ? (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <Space direction="vertical" align="center">
-              <LoadingOutlined style={{ fontSize: 32, color: "#6a5fc1" }} />
-              <Text type="secondary">AI 正在分析中，请稍候...</Text>
+            <Space direction="vertical" align="center" size="middle">
+              <LoadingOutlined style={{ fontSize: 36, color: "#6a5fc1" }} />
+              <Text strong style={{ fontSize: 15 }}>AI 正在生成分析报告...</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                正在汇总参与数据并调用 AI 模型，通常需要 1–2 分钟，请耐心等待
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12, color: "#7c6fa0" }}>
+                请勿关闭此窗口
+              </Text>
             </Space>
           </div>
         ) : analysisResult ? (

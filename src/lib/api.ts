@@ -8,8 +8,11 @@ export interface ApiResponse<T = unknown> {
 
 export async function apiFetch<T = unknown>(
   path: string,
-  options?: RequestInit
+  options?: RequestInit & { timeoutMs?: number }
 ): Promise<ApiResponse<T>> {
+  const timeoutMs = options?.timeoutMs ?? 300_000; // default 5 min for AI endpoints
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const token =
     typeof window !== "undefined"
       ? localStorage.getItem("insight_token")
@@ -32,7 +35,8 @@ export async function apiFetch<T = unknown>(
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timer));
 
   if (response.status === 401) {
     if (typeof window !== "undefined") {
