@@ -86,6 +86,14 @@ func GetUserByEmail(email string) (*User, error) {
 	return &u, nil
 }
 
+func CountUsersByRole(role string) (int64, error) {
+	var total int64
+	if err := db.Model(&User{}).Where("role = ?", role).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 // UserQueryFilter 用户查询过滤器
 type UserQueryFilter struct {
 	Page        int      `json:"page" form:"page"`                 // 页码，默认1

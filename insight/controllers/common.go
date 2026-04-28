@@ -87,6 +87,16 @@ type AdminCreateRequest struct {
 	Password string `json:"password" binding:"required,min=6"`
 }
 
+type AdminUpdateRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required,min=2,max=50"`
+	Role     string `json:"role" binding:"required,oneof=admin super_admin"`
+}
+
+type AdminResetPasswordRequest struct {
+	Password string `json:"password" binding:"required,min=6"`
+}
+
 // Project
 type CreateProjectRequest struct {
 	Name        string   `json:"name" binding:"required,min=2,max=100"`

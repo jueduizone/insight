@@ -15,6 +15,8 @@ func SetupRouter(r *gin.Engine) {
 	auth := r.Group("/v1", middlewares.JWT(""))
 	{
 		auth.POST("/admin/users", controllers.CreateAdminUser)
+		auth.PUT("/admin/users/:id", controllers.UpdateAdminUser)
+		auth.PUT("/admin/users/:id/password", controllers.ResetAdminPassword)
 
 		auth.GET("/users", controllers.QueryUsers)
 		auth.POST("/users", controllers.CreateUser)

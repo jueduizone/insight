@@ -12,9 +12,10 @@ import {
   Tabs,
   Descriptions,
   Divider,
+  Select,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { PlusOutlined, KeyOutlined } from "@ant-design/icons";
+import { PlusOutlined, KeyOutlined, EditOutlined } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +41,17 @@ interface CreateAdminFormValues {
   password: string;
 }
 
+interface EditAdminFormValues {
+  email: string;
+  username: string;
+  role: string;
+}
+
+interface ResetPasswordFormValues {
+  password: string;
+  confirm_password: string;
+}
+
 interface ChangePasswordFormValues {
   old_password: string;
   new_password: string;
@@ -59,6 +71,14 @@ export default function SettingsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm] = Form.useForm<CreateAdminFormValues>();
+
+  const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm] = Form.useForm<EditAdminFormValues>();
+
+  const [resettingAdmin, setResettingAdmin] = useState<AdminUser | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetForm] = Form.useForm<ResetPasswordFormValues>();
 
   // Tab2: personal settings
   const [pwLoading, setPwLoading] = useState(false);
@@ -99,7 +119,7 @@ export default function SettingsPage() {
         }),
       });
       if (res.code === 200 || res.code === 201) {
-        message.success("管理员创建成功");
+        message.success(res.code === 200 ? "已将现有开发者提升为管理员" : "管理员创建成功");
         setCreateOpen(false);
         createForm.resetFields();
         fetchAdmins(1);
@@ -111,6 +131,69 @@ export default function SettingsPage() {
       message.error("创建失败");
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  const openEditAdmin = (admin: AdminUser) => {
+    setEditingAdmin(admin);
+    editForm.setFieldsValue({
+      email: admin.email,
+      username: admin.username,
+      role: admin.role,
+    });
+  };
+
+  const handleEditAdmin = async (values: EditAdminFormValues) => {
+    if (!editingAdmin) return;
+    setEditLoading(true);
+    try {
+      const res = await apiFetch(`/v1/admin/users/${editingAdmin.id}`, {
+        method: "PUT",
+        body: JSON.stringify(values),
+      });
+      if (res.code === 200) {
+        message.success("管理员信息已更新");
+        setEditingAdmin(null);
+        editForm.resetFields();
+        fetchAdmins(adminsPage);
+      } else {
+        message.error(res.message || "更新失败");
+      }
+    } catch {
+      message.error("更新失败");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const openResetPassword = (admin: AdminUser) => {
+    setResettingAdmin(admin);
+    resetForm.resetFields();
+  };
+
+  const handleResetPassword = async (values: ResetPasswordFormValues) => {
+    if (!resettingAdmin) return;
+    if (values.password !== values.confirm_password) {
+      message.error("两次输入的新密码不一致");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await apiFetch(`/v1/admin/users/${resettingAdmin.id}/password`, {
+        method: "PUT",
+        body: JSON.stringify({ password: values.password }),
+      });
+      if (res.code === 200) {
+        message.success("密码已重置");
+        setResettingAdmin(null);
+        resetForm.resetFields();
+      } else {
+        message.error(res.message || "重置失败");
+      }
+    } catch {
+      message.error("重置失败");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -167,6 +250,32 @@ export default function SettingsPage() {
       key: "created_at",
       render: (d: string) => new Date(d).toLocaleDateString("zh-CN"),
     },
+    {
+      title: "操作",
+      key: "actions",
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            disabled={!isSuperAdmin}
+            onClick={() => openEditAdmin(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<KeyOutlined />}
+            disabled={!isSuperAdmin}
+            onClick={() => openResetPassword(record)}
+          >
+            重置密码
+          </Button>
+        </Space>
+      ),
+    },
   ];
 
   const tab1Content = (
@@ -174,10 +283,12 @@ export default function SettingsPage() {
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: 16,
         }}
       >
+        <Text type="secondary">仅展示运营/管理员账号；开发者无需登录后台。</Text>
         {isSuperAdmin && (
           <Button
             type="primary"
@@ -305,7 +416,10 @@ export default function SettingsPage() {
           style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
         }}
       >
-        <Form form={createForm} layout="vertical" onFinish={handleCreateAdmin}>
+        <Text type="secondary">
+          如果邮箱已存在于开发者名单，会直接提升为管理员并设置登录密码。
+        </Text>
+        <Form form={createForm} layout="vertical" onFinish={handleCreateAdmin} style={{ marginTop: 16 }}>
           <Form.Item
             name="email"
             label="邮箱"
@@ -332,6 +446,86 @@ export default function SettingsPage() {
             ]}
           >
             <Input.Password placeholder="至少 6 位" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="编辑管理员"
+        open={!!editingAdmin}
+        onCancel={() => {
+          setEditingAdmin(null);
+          editForm.resetFields();
+        }}
+        onOk={() => editForm.submit()}
+        confirmLoading={editLoading}
+        okButtonProps={{
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
+        }}
+      >
+        <Form form={editForm} layout="vertical" onFinish={handleEditAdmin}>
+          <Form.Item
+            name="email"
+            label="邮箱"
+            rules={[
+              { required: true, message: "请输入邮箱" },
+              { type: "email", message: "请输入有效邮箱" },
+            ]}
+          >
+            <Input placeholder="admin@example.com" />
+          </Form.Item>
+          <Form.Item
+            name="username"
+            label="用户名"
+            rules={[{ required: true, message: "请输入用户名" }]}
+          >
+            <Input placeholder="用户名" />
+          </Form.Item>
+          <Form.Item
+            name="role"
+            label="角色"
+            rules={[{ required: true, message: "请选择角色" }]}
+          >
+            <Select
+              options={[
+                { label: "admin", value: "admin" },
+                { label: "super_admin", value: "super_admin" },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`重置密码${resettingAdmin ? `：${resettingAdmin.email}` : ""}`}
+        open={!!resettingAdmin}
+        onCancel={() => {
+          setResettingAdmin(null);
+          resetForm.resetFields();
+        }}
+        onOk={() => resetForm.submit()}
+        confirmLoading={resetLoading}
+        okButtonProps={{
+          style: { background: "var(--accent-purple)", borderColor: "var(--accent-purple)" },
+        }}
+      >
+        <Form form={resetForm} layout="vertical" onFinish={handleResetPassword}>
+          <Form.Item
+            name="password"
+            label="新密码"
+            rules={[
+              { required: true, message: "请输入新密码" },
+              { min: 6, message: "密码至少 6 位" },
+            ]}
+          >
+            <Input.Password placeholder="至少 6 位" />
+          </Form.Item>
+          <Form.Item
+            name="confirm_password"
+            label="确认新密码"
+            rules={[{ required: true, message: "请再次输入新密码" }]}
+          >
+            <Input.Password placeholder="再次输入新密码" />
           </Form.Item>
         </Form>
       </Modal>
