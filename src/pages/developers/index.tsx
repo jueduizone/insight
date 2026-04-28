@@ -605,9 +605,31 @@ export default function DevelopersPage() {
       key: "username",
       render: (username: string, record: User) => {
         const intro = getDisplayIntro(record.intro);
+        const hasProfile = hasAiProfile(record.notes);
         return (
           <div>
-            <Text strong>{username || "—"}</Text>
+            <Space size={6} align="center">
+              <Text strong>{username || "—"}</Text>
+              <Tooltip title={hasProfile ? "已有 AI 画像，可进入详情查看" : "暂无 AI 画像"}>
+                <span
+                  aria-label={hasProfile ? "已有 AI 画像" : "暂无 AI 画像"}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 999,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: hasProfile ? "#8b5cf6" : "#9ca3af",
+                    background: hasProfile ? "rgba(139, 92, 246, 0.14)" : "rgba(156, 163, 175, 0.08)",
+                    border: hasProfile ? "1px solid rgba(139, 92, 246, 0.35)" : "1px solid rgba(156, 163, 175, 0.18)",
+                    opacity: hasProfile ? 1 : 0.5,
+                  }}
+                >
+                  <RobotOutlined style={{ fontSize: 12 }} />
+                </span>
+              </Tooltip>
+            </Space>
             {intro && (
               <div>
                 <Text type="secondary" style={{ fontSize: 12 }}>
@@ -619,23 +641,6 @@ export default function DevelopersPage() {
           </div>
         );
       },
-    },
-    {
-      title: "AI 画像",
-      key: "ai_profile",
-      width: 100,
-      render: (_: unknown, record: User) =>
-        hasAiProfile(record.notes) ? (
-          <Tooltip title="已有 AI 画像，可进入详情查看">
-            <Tag color="geekblue" icon={<RobotOutlined />} style={{ marginInlineEnd: 0 }}>
-              已生成
-            </Tag>
-          </Tooltip>
-        ) : (
-          <Tooltip title="暂无 AI 画像">
-            <Tag style={{ marginInlineEnd: 0 }}>未生成</Tag>
-          </Tooltip>
-        ),
     },
     {
       title: "邮箱",
