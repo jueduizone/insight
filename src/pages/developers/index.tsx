@@ -1,6 +1,8 @@
 // parseProjects: 统一解析 existing_projects 字段
 // 按逗号/顿号/换行分割，过滤噪声词
 const NOISE_WORDS = ["无", "没有", "暂无", "现场组队", "待定", "none", "n/a", "no", "nope", "null", "-", "—"];
+const INTRO_NOISE_WORDS = ["有", "无", "没有", "暂无", "none", "n/a", "no", "null", "-", "—"];
+
 export function parseProjects(raw?: string | null): string[] {
   if (!raw) return [];
   return raw
@@ -11,6 +13,19 @@ export function parseProjects(raw?: string | null): string[] {
       const lower = s.toLowerCase();
       return !NOISE_WORDS.some((n) => lower === n || lower === n.toLowerCase());
     });
+}
+
+export function getDisplayIntro(raw?: string | null): string {
+  const intro = (raw || "").trim();
+  if (!intro) return "";
+  const lower = intro.toLowerCase();
+  if (INTRO_NOISE_WORDS.some((n) => lower === n || lower === n.toLowerCase())) return "";
+  return intro;
+}
+
+export function hasAiProfile(notes?: string | null): boolean {
+  const val = (notes || "").trim();
+  return !!val && !val.includes("数据不足");
 }
 
 import { useEffect, useState, useMemo } from "react";
@@ -51,6 +66,7 @@ import {
   GithubOutlined,
   TwitterOutlined,
   MessageOutlined,
+  RobotOutlined,
 } from "@ant-design/icons";
 import Layout from "@/components/Layout";
 import { apiFetch, API_BASE } from "@/lib/api";
@@ -152,8 +168,9 @@ const FIELD_LABELS: Record<string, string> = {
 
 type ImportStep = "upload" | "preview" | "result";
 type GithubFilter = "all" | "has" | "none";
+type ProfileFilter = "all" | "has" | "none";
 type ChineseFilter = "all" | "chinese" | "monad";
-type QuickFilter = "all" | "has_github" | "has_project" | "monad_contributor";
+type QuickFilter = "all" | "has_github" | "has_project" | "has_profile" | "monad_contributor";
 
 export default function DevelopersPage() {
   const router = useRouter();
@@ -163,6 +180,7 @@ export default function DevelopersPage() {
   const [selectedGroup, setSelectedGroup] = useState<string>("All");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [githubFilter, setGithubFilter] = useState<GithubFilter>("all");
+  const [profileFilter, setProfileFilter] = useState<ProfileFilter>("all");
   const [chineseFilter, setChineseFilter] = useState<ChineseFilter>("all");
   const [activityRange, setActivityRange] = useState<string>("all");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
@@ -393,6 +411,12 @@ export default function DevelopersPage() {
         (githubFilter === "has" && !!u.github) ||
         (githubFilter === "none" && !u.github);
 
+      const userHasProfile = hasAiProfile(u.notes);
+      const matchProfile =
+        profileFilter === "all" ||
+        (profileFilter === "has" && userHasProfile) ||
+        (profileFilter === "none" && !userHasProfile);
+
       const score = u.activity_score || 0;
       const matchActivity =
         activityRange === "all" ||
@@ -419,13 +443,15 @@ export default function DevelopersPage() {
         matchQuick = !!u.github;
       } else if (quickFilter === "has_project") {
         matchQuick = !!(u.existing_projects?.trim()) && u.projects_cleaned !== false;
+      } else if (quickFilter === "has_profile") {
+        matchQuick = userHasProfile;
       } else if (quickFilter === "monad_contributor") {
         matchQuick = (githubStats.monad_commits ?? 0) > 0;
       }
 
-      return matchSearch && matchGroup && matchTag && matchGithub && matchActivity && matchChinese && matchQuick;
+      return matchSearch && matchGroup && matchTag && matchGithub && matchProfile && matchActivity && matchChinese && matchQuick;
     });
-  }, [users, search, selectedGroup, selectedTag, githubFilter, activityRange, chineseFilter, quickFilter]);
+  }, [users, search, selectedGroup, selectedTag, githubFilter, profileFilter, activityRange, chineseFilter, quickFilter]);
 
   const handleCreate = async (values: {
     email: string;
@@ -577,19 +603,39 @@ export default function DevelopersPage() {
       title: "姓名",
       dataIndex: "username",
       key: "username",
-      render: (username: string, record: User) => (
-        <div>
-          <Text strong>{username || "—"}</Text>
-          {record.intro && (
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {record.intro.slice(0, 40)}
-                {record.intro.length > 40 ? "…" : ""}
-              </Text>
-            </div>
-          )}
-        </div>
-      ),
+      render: (username: string, record: User) => {
+        const intro = getDisplayIntro(record.intro);
+        return (
+          <div>
+            <Text strong>{username || "—"}</Text>
+            {intro && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {intro.slice(0, 40)}
+                  {intro.length > 40 ? "…" : ""}
+                </Text>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "AI 画像",
+      key: "ai_profile",
+      width: 100,
+      render: (_: unknown, record: User) =>
+        hasAiProfile(record.notes) ? (
+          <Tooltip title="已有 AI 画像，可进入详情查看">
+            <Tag color="geekblue" icon={<RobotOutlined />} style={{ marginInlineEnd: 0 }}>
+              已生成
+            </Tag>
+          </Tooltip>
+        ) : (
+          <Tooltip title="暂无 AI 画像">
+            <Tag style={{ marginInlineEnd: 0 }}>未生成</Tag>
+          </Tooltip>
+        ),
     },
     {
       title: "邮箱",
@@ -845,6 +891,7 @@ export default function DevelopersPage() {
                   { key: "all", label: "全部" },
                   { key: "has_github", label: "有 GitHub" },
                   { key: "has_project", label: "有项目" },
+                  { key: "has_profile", label: "有 AI 画像" },
                   { key: "monad_contributor", label: "Monad 贡献" },
                 ] as { key: QuickFilter; label: string }[]
               ).map((item) => (
@@ -885,6 +932,18 @@ export default function DevelopersPage() {
               <Option value="all">全部 GitHub</Option>
               <Option value="has">有 GitHub</Option>
               <Option value="none">无 GitHub</Option>
+            </Select>
+            <Select
+              value={profileFilter}
+              onChange={(val: ProfileFilter) => {
+                setProfileFilter(val);
+                setCurrentPage(1);
+              }}
+              style={{ width: 150 }}
+            >
+              <Option value="all">全部画像</Option>
+              <Option value="has">有 AI 画像</Option>
+              <Option value="none">无 AI 画像</Option>
             </Select>
             <Select
               value={activityRange}
