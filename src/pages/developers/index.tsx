@@ -213,6 +213,22 @@ export default function DevelopersPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [aiMatching, setAiMatching] = useState(false);
 
+  const handleProfileFilterChange = (val: ProfileFilter) => {
+    setProfileFilter(val);
+    if (val !== "has" && quickFilter === "has_profile") {
+      setQuickFilter("all");
+    }
+    setCurrentPage(1);
+  };
+
+  const handleQuickFilterChange = (val: QuickFilter) => {
+    setQuickFilter(val);
+    if (val === "has_profile") {
+      setProfileFilter("has");
+    }
+    setCurrentPage(1);
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchEvents();
@@ -904,10 +920,7 @@ export default function DevelopersPage() {
                   key={item.key}
                   color={quickFilter === item.key ? "purple" : "default"}
                   style={{ cursor: "pointer", padding: "2px 10px", fontSize: 13 }}
-                  onClick={() => {
-                    setQuickFilter(item.key);
-                    setCurrentPage(1);
-                  }}
+                  onClick={() => handleQuickFilterChange(item.key)}
                 >
                   {item.label}
                 </Tag>
@@ -940,10 +953,7 @@ export default function DevelopersPage() {
             </Select>
             <Select
               value={profileFilter}
-              onChange={(val: ProfileFilter) => {
-                setProfileFilter(val);
-                setCurrentPage(1);
-              }}
+              onChange={handleProfileFilterChange}
               style={{ width: 150 }}
             >
               <Option value="all">全部画像</Option>
