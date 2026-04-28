@@ -70,6 +70,8 @@ func QueryUsers(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	pageSizeStr := c.DefaultQuery("page_size", "10")
 	username := c.Query("username")
+	role := c.Query("role")
+	rolesParam := c.Query("roles")
 	sortBy := c.DefaultQuery("sort_by", "activity_score")
 	order := c.DefaultQuery("order", "desc")
 	group := c.Query("group")
@@ -121,6 +123,14 @@ func QueryUsers(c *gin.Context) {
 	filter.Page = page
 	filter.PageSize = pageSize
 	filter.Username = username
+	filter.Role = role
+	if rolesParam != "" {
+		for _, r := range strings.Split(rolesParam, ",") {
+			if trimmed := strings.TrimSpace(r); trimmed != "" {
+				filter.Roles = append(filter.Roles, trimmed)
+			}
+		}
+	}
 	filter.SortBy = sortBy
 	filter.Order = order
 	filter.Group = group

@@ -68,7 +68,7 @@ export default function SettingsPage() {
     setAdminsLoading(true);
     try {
       const res = await apiFetch<UsersData>(
-        `/v1/users?role=admin&page=${page}&page_size=20`
+        `/v1/users?roles=admin,super_admin&page=${page}&page_size=20&sort_by=created_at&order=asc`
       );
       if (res.code === 200) {
         setAdmins(res.data.users || []);

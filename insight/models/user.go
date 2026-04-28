@@ -48,7 +48,7 @@ type User struct {
 	ProjectsCleanedAt *time.Time     `gorm:"column:projects_cleaned_at" json:"projects_cleaned_at"`
 	// ExtraCSVData stores all CSV columns that were not mapped to standard fields,
 	// keyed by original column header. Used as supplementary AI analysis corpus.
-	ExtraCSVData      []byte         `gorm:"column:extra_csv_data;type:jsonb" json:"extra_csv_data,omitempty"`
+	ExtraCSVData []byte `gorm:"column:extra_csv_data;type:jsonb" json:"extra_csv_data,omitempty"`
 }
 
 func GetUserByUid(uid uint) (*User, error) {
@@ -88,17 +88,18 @@ func GetUserByEmail(email string) (*User, error) {
 
 // UserQueryFilter 用户查询过滤器
 type UserQueryFilter struct {
-	Page       int    `json:"page" form:"page"`             // 页码，默认1
-	PageSize   int    `json:"page_size" form:"page_size"`   // 每页数量，默认10
-	Username   string `json:"username" form:"username"`     // 用户名模糊查询
-	Role       string `json:"role" form:"role"`             // 角色过滤
-	SortBy     string `json:"sort_by" form:"sort_by"`       // 排序字段，默认 activity_score
-	Order      string `json:"order" form:"order"`           // 排序方向，asc/desc，默认 desc
-	Group      string `json:"group" form:"group"`           // group 精确匹配
-	HasGithub  *bool  `json:"has_github" form:"has_github"` // true=有github, false=无
-	HasProfile *bool  `json:"has_profile" form:"has_profile"` // true=有notes画像, false=无
-	EventID     *uint  `json:"event_id" form:"event_id"`          // 按活动筛选，只返回参加过该活动的用户
-	EventStatus string `json:"event_status" form:"event_status"` // 按活动报名状态筛选，需配合 event_id 使用
+	Page        int      `json:"page" form:"page"`                 // 页码，默认1
+	PageSize    int      `json:"page_size" form:"page_size"`       // 每页数量，默认10
+	Username    string   `json:"username" form:"username"`         // 用户名模糊查询
+	Role        string   `json:"role" form:"role"`                 // 角色过滤
+	Roles       []string `json:"roles" form:"roles"`               // 多角色过滤
+	SortBy      string   `json:"sort_by" form:"sort_by"`           // 排序字段，默认 activity_score
+	Order       string   `json:"order" form:"order"`               // 排序方向，asc/desc，默认 desc
+	Group       string   `json:"group" form:"group"`               // group 精确匹配
+	HasGithub   *bool    `json:"has_github" form:"has_github"`     // true=有github, false=无
+	HasProfile  *bool    `json:"has_profile" form:"has_profile"`   // true=有notes画像, false=无
+	EventID     *uint    `json:"event_id" form:"event_id"`         // 按活动筛选，只返回参加过该活动的用户
+	EventStatus string   `json:"event_status" form:"event_status"` // 按活动报名状态筛选，需配合 event_id 使用
 }
 
 // QueryUsers 查询用户列表
@@ -114,7 +115,9 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 		query = query.Where("username ILIKE ?", likePattern)
 	}
 
-	if filter.Role != "" {
+	if len(filter.Roles) > 0 {
+		query = query.Where("role IN ?", filter.Roles)
+	} else if filter.Role != "" {
 		query = query.Where("role = ?", filter.Role)
 	} else {
 		// 默认排除管理员账号，只显示开发者
