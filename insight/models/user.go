@@ -15,6 +15,7 @@ const InsufficientDataMarker = "（数据不足，待补充）"
 //   ALTER TABLE users ADD COLUMN projects_cleaned BOOLEAN NOT NULL DEFAULT FALSE;
 //   ALTER TABLE users ADD COLUMN projects_cleaned_at TIMESTAMP;
 //   ALTER TABLE users ADD COLUMN extra_csv_data JSONB;
+//   ALTER TABLE users ADD COLUMN web3insight_data JSONB;
 
 type User struct {
 	gorm.Model        `json:"-"`
@@ -34,6 +35,7 @@ type User struct {
 	Uid               uint           `json:"-"` // OAUTH
 	WalletAddress     string         `json:"wallet_address"`
 	Web3InsightId     string         `json:"web3insight_id"`
+	Web3InsightData   []byte         `gorm:"column:web3insight_data;type:jsonb" json:"web3insight_data,omitempty"`
 	Tags              pq.StringArray `gorm:"type:text[]" json:"tags"`
 	Group             string         `json:"group" gorm:"default:normal"`
 	GithubStats       []byte         `gorm:"type:jsonb" json:"github_stats"`
@@ -115,7 +117,7 @@ func QueryUsers(filter UserQueryFilter) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, monad_experience, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, tags, \"group\", notes, role, activity_score, first_joined_at, projects_raw, projects_cleaned, projects_cleaned_at, github_stats")
+	query := db.Model(&User{}).Select("id, created_at, updated_at, email, username, intro, monad_experience, avatar, github, twitter, wechat, telegram, existing_projects, wallet_address, web3insight_id, web3insight_data, tags, \"group\", notes, role, activity_score, first_joined_at, projects_raw, projects_cleaned, projects_cleaned_at, github_stats")
 
 	// 用户名模糊查询
 	if filter.Username != "" {
@@ -226,9 +228,19 @@ func UpdateUserWeb3Insight(userID uint, web3insightID string) error {
 	return db.Model(&User{}).Where("id = ?", userID).Update("web3insight_id", web3insightID).Error
 }
 
+func UpdateUserWeb3InsightData(userID uint, web3insightID string, data []byte) error {
+	updates := map[string]interface{}{
+		"web3insight_data": data,
+	}
+	if web3insightID != "" {
+		updates["web3insight_id"] = web3insightID
+	}
+	return db.Model(&User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
 func GetAllUsersForScore() ([]User, error) {
 	var users []User
-	err := db.Select("id, github, github_stats, web3insight_id, notes, projects_cleaned, existing_projects").Find(&users).Error
+	err := db.Select("id, github, github_stats, web3insight_id, web3insight_data, notes, projects_cleaned, existing_projects").Find(&users).Error
 	return users, err
 }
 
@@ -290,8 +302,8 @@ func MarkProjectsCleaned(userID uint, cleanedProjects string, cleanedAt time.Tim
 // GetUsersWithGithubNoWeb3Insight returns users that have github but no web3insight_id
 func GetUsersWithGithubNoWeb3Insight(limit int) ([]User, error) {
 	var users []User
-	err := db.Where("github != '' AND (web3insight_id IS NULL OR web3insight_id = '') AND role = 'member'").
-		Select("id, github, username, web3insight_id, github_stats").
+	err := db.Where("github != '' AND (web3insight_id IS NULL OR web3insight_id = '') AND (web3insight_data IS NULL OR web3insight_data = '{}'::jsonb) AND role = 'member'").
+		Select("id, github, username, web3insight_id, web3insight_data, github_stats").
 		Limit(limit).Find(&users).Error
 	return users, err
 }
@@ -300,14 +312,14 @@ func GetUsersWithGithubNoWeb3Insight(limit int) ([]User, error) {
 func GetUsersWithoutProfile(limit int) ([]User, error) {
 	var users []User
 	err := db.Where("role = 'member' AND (notes IS NULL OR notes = '') AND id IN (SELECT DISTINCT user_id FROM activity_records)").
-		Select("id, username, github, intro, monad_experience, existing_projects, notes, github_stats, extra_csv_data").
+		Select("id, username, github, intro, monad_experience, existing_projects, notes, github_stats, web3insight_data, extra_csv_data").
 		Limit(limit).Find(&users).Error
 	return users, err
 }
 
 func CountUsersWithWeb3Insight() (int64, error) {
 	var count int64
-	return count, db.Model(&User{}).Where("role = 'member' AND web3insight_id IS NOT NULL AND web3insight_id != ''").Count(&count).Error
+	return count, db.Model(&User{}).Where("role = 'member' AND ((web3insight_id IS NOT NULL AND web3insight_id != '' AND web3insight_id != 'not_found') OR (web3insight_data IS NOT NULL AND web3insight_data != '{}'::jsonb AND COALESCE(web3insight_data->>'status', '') NOT IN ('not_found', 'invalid_github')))").Count(&count).Error
 }
 
 func CountUsersWithGithub() (int64, error) {

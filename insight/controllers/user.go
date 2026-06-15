@@ -308,13 +308,24 @@ func SyncUserWeb3Insight(c *gin.Context) {
 	}
 
 	// 2. Fetch Web3Insight data (best-effort, don't fail if unavailable)
-	if w3data, w3err := utils.FetchWeb3InsightUser(login); w3err == nil && len(w3data) > 0 {
-		if w3id, ok := w3data["web3insight_id"].(string); ok && w3id != "" {
-			user.Web3InsightId = w3id
-			models.UpdateUser(user)
+	if w3result, w3err := utils.FetchWeb3InsightUser(login); w3err == nil && w3result != nil {
+		raw, mErr := json.Marshal(w3result.Raw)
+		if !w3result.Found {
+			raw, mErr = json.Marshal(map[string]interface{}{
+				"status":       "not_found",
+				"github_login": login,
+			})
 		}
-		result["web3insight"] = w3data
-		synced = true
+		if mErr == nil {
+			w3id := extractWeb3InsightID(w3result.Data)
+			if dbErr := models.UpdateUserWeb3InsightData(uint(id), w3id, raw); dbErr == nil {
+				result["web3insight"] = w3result.Raw
+				result["web3insight_found"] = w3result.Found
+				synced = true
+			}
+		}
+	} else if w3err != nil {
+		result["web3insight_error"] = w3err.Error()
 	}
 
 	if !synced {
@@ -323,4 +334,13 @@ func SyncUserWeb3Insight(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Sync successful", result)
+}
+
+func extractWeb3InsightID(data map[string]interface{}) string {
+	for _, key := range []string{"web3insight_id", "id", "user_id"} {
+		if value, ok := data[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
 }

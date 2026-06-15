@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"encoding/json"
 	"fmt"
 	"insight/models"
 	"insight/utils"
@@ -46,26 +47,37 @@ func syncWeb3InsightBatch(limit int) int {
 	for _, u := range users {
 		login := extractGitHubLogin(u.Github)
 		if login == "" {
-			// 无法提取 login，标记 not_found 避免重复处理
-			models.UpdateUserWeb3Insight(u.ID, "not_found")
+			markWeb3InsightNoData(u.ID, "invalid_github", "")
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
-		data, err := utils.FetchWeb3InsightUser(login)
+		result, err := utils.FetchWeb3InsightUser(login)
 		if err != nil {
 			log.Printf("[web3insight_worker] failed user %d (%s): %v", u.ID, login, err)
-			models.UpdateUserWeb3Insight(u.ID, "not_found")
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
 
-		w3id := "not_found"
-		if id, ok := data["web3insight_id"].(string); ok && id != "" {
-			w3id = id
+		if result == nil || !result.Found {
+			if err := markWeb3InsightNoData(u.ID, "not_found", login); err != nil {
+				log.Printf("[web3insight_worker] failed to persist no-data marker for user %d: %v", u.ID, err)
+			} else {
+				synced++
+			}
+			time.Sleep(200 * time.Millisecond)
+			continue
 		}
-		if err := models.UpdateUserWeb3Insight(u.ID, w3id); err != nil {
-			log.Printf("[web3insight_worker] failed to update web3insight_id for user %d: %v", u.ID, err)
+
+		w3id := extractWeb3InsightID(result.Data)
+		raw, err := json.Marshal(result.Raw)
+		if err != nil {
+			log.Printf("[web3insight_worker] failed to marshal web3insight data for user %d: %v", u.ID, err)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		if err := models.UpdateUserWeb3InsightData(u.ID, w3id, raw); err != nil {
+			log.Printf("[web3insight_worker] failed to update web3insight data for user %d: %v", u.ID, err)
 		} else {
 			synced++
 		}
@@ -73,4 +85,21 @@ func syncWeb3InsightBatch(limit int) int {
 	}
 	fmt.Printf("[web3insight_worker] batch done, synced %d/%d\n", synced, len(users))
 	return synced
+}
+
+func markWeb3InsightNoData(userID uint, status, githubLogin string) error {
+	body, _ := json.Marshal(map[string]interface{}{
+		"status":       status,
+		"github_login": githubLogin,
+	})
+	return models.UpdateUserWeb3InsightData(userID, "", body)
+}
+
+func extractWeb3InsightID(data map[string]interface{}) string {
+	for _, key := range []string{"web3insight_id", "id", "user_id"} {
+		if value, ok := data[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
 }

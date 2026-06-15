@@ -22,14 +22,16 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
-
-  useEffect(() => {
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === "undefined") {
+      return "dark";
+    }
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
     if (stored === "light" || stored === "dark") {
-      setTheme(stored);
+      return stored;
     }
-  }, []);
+    return "dark";
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

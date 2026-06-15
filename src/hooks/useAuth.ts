@@ -12,29 +12,35 @@ export interface AuthUser {
 
 export function useAuth() {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [token] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return localStorage.getItem("insight_token");
+  });
+  const [user] = useState<AuthUser | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const u = localStorage.getItem("insight_user");
+    if (!u) {
+      return null;
+    }
+    try {
+      return JSON.parse(u);
+    } catch {
+      return null;
+    }
+  });
+  const loading = false;
 
   useEffect(() => {
     const t = localStorage.getItem("insight_token");
-    const u = localStorage.getItem("insight_user");
 
     if (!t) {
       router.replace("/login");
-      return;
     }
-
-    setToken(t);
-    if (u) {
-      try {
-        setUser(JSON.parse(u));
-      } catch {
-        // ignore parse error
-      }
-    }
-    setLoading(false);
-  }, []);
+  }, [router]);
 
   const logout = () => {
     localStorage.removeItem("insight_token");

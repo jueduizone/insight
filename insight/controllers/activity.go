@@ -3,11 +3,13 @@ package controllers
 import (
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"insight/models"
 	"insight/utils"
 	"insight/workers"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -657,6 +659,8 @@ func AnalyzeEvent(c *gin.Context) {
 		}
 	}
 
+	signals := buildEventAnalysisSignals(records)
+
 	// 构建 AI 分析 prompt
 	var sb strings.Builder
 	sb.WriteString("活动名称：" + event.Name + "\n")
@@ -683,7 +687,33 @@ func AnalyzeEvent(c *gin.Context) {
 		sb.WriteString("\n")
 	}
 
-	systemPrompt := `你是 Monad 生态开发者运营分析师。直接输出分析报告，不要有任何思考过程或前言。
+	sb.WriteString("数据覆盖：\n")
+	sb.WriteString(fmt.Sprintf("  GitHub:%d，GitHub统计:%d，Web3Insight:%d，简介:%d，Monad经验:%d，已有项目:%d，用户CSV补充:%d，活动补充字段:%d\n\n",
+		signals.GithubCount, signals.GithubStatsCount, signals.Web3InsightCount, signals.IntroCount, signals.MonadExperienceCount, signals.ProjectCount, signals.UserExtraCount, signals.RecordExtraCount))
+	if len(signals.PersonaCounts) > 0 {
+		sb.WriteString("初步人群标签：" + compactCountMap(signals.PersonaCounts) + "\n")
+	}
+	if len(signals.SkillCounts) > 0 {
+		sb.WriteString("技能/项目信号：" + compactCountMap(signals.SkillCounts) + "\n")
+	}
+	if len(signals.GitHubHighlights) > 0 {
+		sb.WriteString("GitHub亮点：" + strings.Join(signals.GitHubHighlights, "；") + "\n")
+	}
+	if len(signals.Web3InsightHighlights) > 0 {
+		sb.WriteString("Web3Insight生态/profile信号：" + strings.Join(signals.Web3InsightHighlights, "；") + "\n")
+	}
+	if len(signals.CollaborationHints) > 0 {
+		sb.WriteString("可撮合方向：" + strings.Join(signals.CollaborationHints, "；") + "\n")
+	}
+	sb.WriteString("\n参与者原始字段样本（来自 User intro/monad_experience/existing_projects/extra_csv_data/github_stats/web3insight_data 与 ActivityRecord extra_data，最多60条）：\n")
+	for _, sample := range signals.Samples {
+		sb.WriteString("- " + sample + "\n")
+	}
+	if len(signals.MissingDataHints) > 0 {
+		sb.WriteString("\n缺失/质量问题：" + strings.Join(signals.MissingDataHints, "；") + "\n")
+	}
+
+	systemPrompt := `你是 Monad 生态开发者运营分析师。直接输出中文分析报告，不要有任何思考过程或前言。
 
 报告格式（Markdown，严格按此输出）：
 ## 活动概览
@@ -695,15 +725,20 @@ func AnalyzeEvent(c *gin.Context) {
 ## 角色与获奖分布
 （简要分析，不超过50字）
 
-## 运营洞察
-（3条建议，每条一句话）
+## 人群与技能信号
+（概括用户经验、角色/persona聚类、项目/技能亮点，不超过100字）
 
-要求：总字数不超过300字，直接给结论，不废话。`
+## 协作机会
+（2-3条可执行撮合/跟进建议，每条一句话）
+
+## 数据质量
+（指出缺失字段和下一步补数建议）
+
+要求：总字数不超过420字，必须基于给定原始字段，不编造具体姓名或项目；直接给结论，不废话。`
 
 	report, err := utils.AnalyzeEvent(systemPrompt, sb.String())
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, "AI analysis failed", err.Error())
-		return
+		report = fallbackEventAnalysis(event.Name, totalCount, awardedCount, roleMap, awardMap, signals)
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Success", gin.H{
@@ -715,4 +750,601 @@ func AnalyzeEvent(c *gin.Context) {
 		"award_dist":    awardMap,
 		"report":        report,
 	})
+}
+
+type eventAnalysisSignals struct {
+	GithubCount           int
+	GithubStatsCount      int
+	Web3InsightCount      int
+	IntroCount            int
+	MonadExperienceCount  int
+	ProjectCount          int
+	UserExtraCount        int
+	RecordExtraCount      int
+	PersonaCounts         map[string]int
+	SkillCounts           map[string]int
+	Samples               []string
+	GitHubHighlights      []string
+	Web3InsightHighlights []string
+	CollaborationHints    []string
+	MissingDataHints      []string
+	UsersWithStrongSignal int
+}
+
+func buildEventAnalysisSignals(records []models.ActivityRecord) eventAnalysisSignals {
+	signals := eventAnalysisSignals{
+		PersonaCounts: make(map[string]int),
+		SkillCounts:   make(map[string]int),
+	}
+	githubHighlights := make(map[string]bool)
+	web3InsightHighlights := make(map[string]bool)
+	collaborationHints := make(map[string]bool)
+
+	for _, r := range records {
+		u := r.User
+		userExtra := rawJSONMap(u.ExtraCSVData)
+		recordExtra := rawJSONMap([]byte(r.ExtraData))
+		web3InsightData := rawJSONMap(u.Web3InsightData)
+
+		if strings.TrimSpace(u.Github) != "" {
+			signals.GithubCount++
+		}
+		if hasJSONContent(u.GithubStats) {
+			signals.GithubStatsCount++
+		}
+		if hasWeb3InsightContent(u.Web3InsightData) {
+			signals.Web3InsightCount++
+		}
+		if strings.TrimSpace(u.Intro) != "" {
+			signals.IntroCount++
+		}
+		if strings.TrimSpace(u.MonadExperience) != "" {
+			signals.MonadExperienceCount++
+		}
+		if strings.TrimSpace(u.ExistingProjects) != "" {
+			signals.ProjectCount++
+		}
+		if len(userExtra) > 0 {
+			signals.UserExtraCount++
+		}
+		if len(recordExtra) > 0 {
+			signals.RecordExtraCount++
+		}
+
+		rawText := strings.Join([]string{
+			u.Username, u.Intro, u.MonadExperience, u.ExistingProjects, r.Role, r.Award, r.Status,
+			joinMapValues(userExtra), joinMapValues(recordExtra), githubStatsText(u.GithubStats), web3InsightText(u.Web3InsightData),
+		}, " ")
+		if strings.TrimSpace(rawText) != "" {
+			signals.UsersWithStrongSignal++
+		}
+
+		for _, persona := range classifyPersonas(rawText, r.Role) {
+			signals.PersonaCounts[persona]++
+		}
+		for _, skill := range classifySkills(rawText) {
+			signals.SkillCounts[skill]++
+		}
+
+		if gh := githubSummary(u.GithubStats); gh != "" {
+			githubHighlights[gh] = true
+		}
+		if w3 := web3InsightSummary(u.Web3InsightData); w3 != "" {
+			web3InsightHighlights[w3] = true
+		}
+		for _, hint := range collaborationFor(rawText) {
+			collaborationHints[hint] = true
+		}
+		if len(signals.Samples) < 60 {
+			if sample := participantAnalysisSample(u, r, userExtra, recordExtra, web3InsightData); sample != "" {
+				signals.Samples = append(signals.Samples, sample)
+			}
+		}
+	}
+
+	signals.GitHubHighlights = sortedMapKeys(githubHighlights, 6)
+	signals.Web3InsightHighlights = sortedMapKeys(web3InsightHighlights, 6)
+	signals.CollaborationHints = sortedMapKeys(collaborationHints, 6)
+	signals.MissingDataHints = missingEventDataHints(len(records), signals)
+	return signals
+}
+
+func fallbackEventAnalysis(eventName string, totalCount, awardedCount int, roleMap, awardMap map[string]int, signals eventAnalysisSignals) string {
+	var sb strings.Builder
+	awardRate := 0.0
+	if totalCount > 0 {
+		awardRate = float64(awardedCount) * 100 / float64(totalCount)
+	}
+
+	sb.WriteString("## 活动概览\n")
+	sb.WriteString(eventName + " 已导入 " + strconv.Itoa(totalCount) + " 位参与者，可用于基础运营复盘。\n\n")
+
+	sb.WriteString("## 参与数据\n")
+	sb.WriteString("- 参与人数：" + strconv.Itoa(totalCount) + "\n")
+	sb.WriteString("- 获奖人数：" + strconv.Itoa(awardedCount) + "\n")
+	sb.WriteString("- 获奖率：" + fmt.Sprintf("%.1f%%", awardRate) + "\n\n")
+
+	sb.WriteString("## 角色与获奖分布\n")
+	if len(roleMap) == 0 && len(awardMap) == 0 {
+		sb.WriteString("当前数据缺少角色或获奖字段，建议补齐后再做细分分析。\n\n")
+	} else {
+		if len(roleMap) > 0 {
+			sb.WriteString("角色分布：" + compactCountMap(roleMap) + "。")
+		}
+		if len(awardMap) > 0 {
+			sb.WriteString("获奖分布：" + compactCountMap(awardMap) + "。")
+		}
+		sb.WriteString("\n\n")
+	}
+
+	sb.WriteString("## 人群与技能信号\n")
+	sb.WriteString(fmt.Sprintf("原始字段覆盖：GitHub %d人、GitHub统计 %d人、Web3Insight %d人、简介 %d人、Monad经验 %d人、已有项目 %d人。",
+		signals.GithubCount, signals.GithubStatsCount, signals.Web3InsightCount, signals.IntroCount, signals.MonadExperienceCount, signals.ProjectCount))
+	if len(signals.PersonaCounts) > 0 {
+		sb.WriteString("人群标签以 " + compactTopCountMap(signals.PersonaCounts, 4) + " 为主。")
+	}
+	if len(signals.SkillCounts) > 0 {
+		sb.WriteString("技能信号集中在 " + compactTopCountMap(signals.SkillCounts, 5) + "。")
+	}
+	if len(signals.Web3InsightHighlights) > 0 {
+		sb.WriteString("Web3Insight 生态信号：" + strings.Join(signals.Web3InsightHighlights, "；") + "。")
+	}
+	sb.WriteString("\n\n")
+
+	sb.WriteString("## 协作机会\n")
+	if len(signals.CollaborationHints) == 0 {
+		sb.WriteString("- 优先按角色、项目和 GitHub 活跃度做二次分层，找出可孵化对象。\n")
+	} else {
+		for _, hint := range signals.CollaborationHints {
+			sb.WriteString("- " + hint + "。\n")
+		}
+	}
+	if len(signals.GitHubHighlights) > 0 {
+		sb.WriteString("- GitHub 亮点：" + strings.Join(signals.GitHubHighlights, "；") + "。\n")
+	}
+	if len(signals.Web3InsightHighlights) > 0 {
+		sb.WriteString("- Web3Insight 覆盖可用于补充生态贡献、profile 标签和活跃度分层。\n")
+	}
+
+	sb.WriteString("\n## 数据质量\n")
+	if len(signals.MissingDataHints) == 0 {
+		sb.WriteString("核心字段覆盖较完整，可继续补充项目进展、技能栈和后续转化状态。")
+	} else {
+		sb.WriteString(strings.Join(signals.MissingDataHints, "；") + "。")
+	}
+	return sb.String()
+}
+
+func compactCountMap(m map[string]int) string {
+	parts := make([]string, 0, len(m))
+	for k, v := range m {
+		if strings.TrimSpace(k) == "" {
+			continue
+		}
+		parts = append(parts, k+":"+strconv.Itoa(v))
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, "、")
+}
+
+func compactTopCountMap(m map[string]int, limit int) string {
+	type kv struct {
+		Key   string
+		Value int
+	}
+	items := make([]kv, 0, len(m))
+	for k, v := range m {
+		if strings.TrimSpace(k) != "" && v > 0 {
+			items = append(items, kv{k, v})
+		}
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Value == items[j].Value {
+			return items[i].Key < items[j].Key
+		}
+		return items[i].Value > items[j].Value
+	})
+	if limit > 0 && len(items) > limit {
+		items = items[:limit]
+	}
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		parts = append(parts, item.Key+":"+strconv.Itoa(item.Value))
+	}
+	return strings.Join(parts, "、")
+}
+
+func rawJSONMap(raw []byte) map[string]string {
+	result := make(map[string]string)
+	if !hasJSONContent(raw) {
+		return result
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return result
+	}
+	for k, v := range data {
+		value := strings.TrimSpace(fmt.Sprint(v))
+		if value != "" && value != "<nil>" {
+			result[strings.TrimSpace(k)] = value
+		}
+	}
+	return result
+}
+
+func hasJSONContent(raw []byte) bool {
+	s := strings.TrimSpace(string(raw))
+	return s != "" && s != "null" && s != "{}"
+}
+
+func joinMapValues(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	values := make([]string, 0, len(m))
+	for k, v := range m {
+		if strings.TrimSpace(v) != "" {
+			values = append(values, k+":"+v)
+		}
+	}
+	sort.Strings(values)
+	return strings.Join(values, " ")
+}
+
+func participantAnalysisSample(u models.User, r models.ActivityRecord, userExtra, recordExtra, web3InsightData map[string]string) string {
+	parts := []string{}
+	if u.Username != "" {
+		parts = append(parts, "用户:"+truncateText(u.Username, 24))
+	}
+	if u.Github != "" {
+		parts = append(parts, "GitHub:"+truncateText(u.Github, 32))
+	}
+	if r.Role != "" {
+		parts = append(parts, "角色:"+truncateText(r.Role, 20))
+	}
+	if r.Award != "" {
+		parts = append(parts, "获奖:"+truncateText(r.Award, 24))
+	}
+	if u.Intro != "" {
+		parts = append(parts, "简介:"+truncateText(u.Intro, 90))
+	}
+	if u.MonadExperience != "" {
+		parts = append(parts, "Monad经验:"+truncateText(u.MonadExperience, 90))
+	}
+	if u.ExistingProjects != "" {
+		parts = append(parts, "已有项目:"+truncateText(u.ExistingProjects, 90))
+	}
+	if gh := githubSummary(u.GithubStats); gh != "" {
+		parts = append(parts, "GitHub统计:"+gh)
+	}
+	if w3 := web3InsightSummary(u.Web3InsightData); w3 != "" {
+		parts = append(parts, "Web3Insight:"+w3)
+	} else if len(web3InsightData) > 0 {
+		parts = append(parts, "Web3Insight:"+truncateText(joinMapValues(web3InsightData), 120))
+	}
+	if len(userExtra) > 0 {
+		parts = append(parts, "CSV:"+truncateText(joinMapValues(userExtra), 120))
+	}
+	if len(recordExtra) > 0 {
+		parts = append(parts, "活动补充:"+truncateText(joinMapValues(recordExtra), 100))
+	}
+	return strings.Join(parts, "；")
+}
+
+func githubStatsText(raw []byte) string {
+	if !hasJSONContent(raw) {
+		return ""
+	}
+	var gs map[string]interface{}
+	if err := json.Unmarshal(raw, &gs); err != nil {
+		return ""
+	}
+	return joinMapValues(mapInterfaceToStrings(gs))
+}
+
+func githubSummary(raw []byte) string {
+	if !hasJSONContent(raw) {
+		return ""
+	}
+	var gs map[string]interface{}
+	if err := json.Unmarshal(raw, &gs); err != nil {
+		return ""
+	}
+	parts := []string{}
+	if v := numberFromMap(gs, "public_repos"); v > 0 {
+		parts = append(parts, fmt.Sprintf("仓库%.0f", v))
+	}
+	if v := numberFromMap(gs, "followers"); v > 0 {
+		parts = append(parts, fmt.Sprintf("粉丝%.0f", v))
+	}
+	if v := numberFromMap(gs, "total_commits_30d"); v > 0 {
+		parts = append(parts, fmt.Sprintf("近30天commit %.0f", v))
+	}
+	if v := numberFromMap(gs, "monad_commits"); v > 0 {
+		parts = append(parts, fmt.Sprintf("Monad commit %.0f", v))
+	}
+	if langs, ok := gs["languages"].([]interface{}); ok && len(langs) > 0 {
+		langParts := []string{}
+		for i, lang := range langs {
+			if i >= 4 {
+				break
+			}
+			if s := strings.TrimSpace(fmt.Sprint(lang)); s != "" {
+				langParts = append(langParts, s)
+			}
+		}
+		if len(langParts) > 0 {
+			parts = append(parts, "语言"+strings.Join(langParts, "/"))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, "、")
+}
+
+func hasWeb3InsightContent(raw []byte) bool {
+	if !hasJSONContent(raw) {
+		return false
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return true
+	}
+	status := strings.TrimSpace(fmt.Sprint(data["status"]))
+	return status != "not_found" && status != "invalid_github"
+}
+
+func web3InsightText(raw []byte) string {
+	if !hasWeb3InsightContent(raw) {
+		return ""
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return ""
+	}
+	return joinMapValues(flattenInsightMap(data, 0))
+}
+
+func web3InsightSummary(raw []byte) string {
+	if !hasWeb3InsightContent(raw) {
+		return ""
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return ""
+	}
+	flat := flattenInsightMap(data, 0)
+	parts := []string{}
+	for _, key := range []string{"profile", "persona", "role", "category", "ecosystem", "ecosystems", "tags", "skills", "score", "rank", "eco_contributions", "weekly_activity", "total_commits"} {
+		if value := strings.TrimSpace(flat[key]); value != "" && value != "<nil>" {
+			parts = append(parts, key+":"+truncateText(value, 40))
+		}
+	}
+	if len(parts) == 0 {
+		for k, v := range flat {
+			lk := strings.ToLower(k)
+			if containsAny(lk, "ecosystem", "profile", "persona", "tag", "skill", "score", "rank", "contribution", "activity") && strings.TrimSpace(v) != "" {
+				parts = append(parts, k+":"+truncateText(v, 40))
+			}
+			if len(parts) >= 5 {
+				break
+			}
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	sort.Strings(parts)
+	if len(parts) > 5 {
+		parts = parts[:5]
+	}
+	return strings.Join(parts, "、")
+}
+
+func flattenInsightMap(data map[string]interface{}, depth int) map[string]string {
+	out := make(map[string]string)
+	if depth > 2 {
+		return out
+	}
+	for k, v := range data {
+		key := strings.TrimSpace(k)
+		switch typed := v.(type) {
+		case map[string]interface{}:
+			for childKey, childValue := range flattenInsightMap(typed, depth+1) {
+				out[childKey] = childValue
+				if key != "" {
+					out[key+"."+childKey] = childValue
+				}
+			}
+		case []interface{}:
+			items := make([]string, 0, len(typed))
+			for _, item := range typed {
+				switch itemMap := item.(type) {
+				case map[string]interface{}:
+					items = append(items, joinMapValues(flattenInsightMap(itemMap, depth+1)))
+				default:
+					items = append(items, fmt.Sprint(item))
+				}
+			}
+			out[key] = strings.Join(items, ",")
+		default:
+			out[key] = fmt.Sprint(v)
+		}
+	}
+	return out
+}
+
+func mapInterfaceToStrings(m map[string]interface{}) map[string]string {
+	out := make(map[string]string)
+	for k, v := range m {
+		switch typed := v.(type) {
+		case []interface{}:
+			items := make([]string, 0, len(typed))
+			for _, item := range typed {
+				items = append(items, fmt.Sprint(item))
+			}
+			out[k] = strings.Join(items, ",")
+		default:
+			out[k] = fmt.Sprint(v)
+		}
+	}
+	return out
+}
+
+func numberFromMap(m map[string]interface{}, key string) float64 {
+	v, ok := m[key]
+	if !ok {
+		return 0
+	}
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case json.Number:
+		f, _ := n.Float64()
+		return f
+	default:
+		return 0
+	}
+}
+
+func classifyPersonas(rawText, role string) []string {
+	text := strings.ToLower(rawText + " " + role)
+	personas := []string{}
+	add := func(label string, keywords ...string) {
+		for _, kw := range keywords {
+			if strings.Contains(text, strings.ToLower(kw)) {
+				personas = append(personas, label)
+				return
+			}
+		}
+	}
+	add("智能合约/协议开发者", "solidity", "smart contract", "智能合约", "合约", "defi", "协议", "protocol")
+	add("全栈/应用开发者", "full stack", "fullstack", "全栈", "backend", "后端", "frontend", "前端", "react", "next.js", "node", "golang")
+	add("产品/创业者", "founder", "创始", "产品", "pm", "startup", "创业", "商业化")
+	add("社区/运营/BD", "community", "社区", "运营", "bd", "growth", "marketing", "kol", "ambassador")
+	add("研究/内容贡献者", "research", "研究", "writer", "内容", "分析", "教程", "媒体")
+	add("Monad生态高关联", "monad", "monad commit", "monad经验")
+	if len(personas) == 0 && strings.TrimSpace(rawText) != "" {
+		personas = append(personas, "待细分参与者")
+	}
+	return uniqueStrings(personas)
+}
+
+func classifySkills(rawText string) []string {
+	text := strings.ToLower(rawText)
+	skills := []string{}
+	keywords := map[string][]string{
+		"Solidity/合约": {"solidity", "smart contract", "智能合约", "合约"},
+		"前端":          {"frontend", "前端", "react", "vue", "next.js", "typescript"},
+		"后端":          {"backend", "后端", "golang", "go ", "rust", "python", "node"},
+		"DeFi":        {"defi", "dex", "swap", "staking", "lending", "yield"},
+		"NFT/GameFi":  {"nft", "gamefi", "游戏", "gaming"},
+		"数据/AI":       {"data", "数据", "ai", "agent", "llm", "机器学习"},
+		"钱包/基础设施":     {"wallet", "钱包", "infra", "基础设施", "rpc", "indexer"},
+		"开源":          {"open source", "opensource", "开源", "github"},
+	}
+	for label, kws := range keywords {
+		for _, kw := range kws {
+			if strings.Contains(text, kw) {
+				skills = append(skills, label)
+				break
+			}
+		}
+	}
+	return uniqueStrings(skills)
+}
+
+func collaborationFor(rawText string) []string {
+	text := strings.ToLower(rawText)
+	hints := []string{}
+	if containsAny(text, "solidity", "智能合约", "合约", "protocol", "defi") && containsAny(text, "react", "frontend", "前端", "产品", "用户") {
+		hints = append(hints, "将合约/协议开发者与前端或产品型参与者配对，推进可演示 Demo")
+	}
+	if containsAny(text, "founder", "创始", "startup", "创业", "existing_projects", "已有项目") {
+		hints = append(hints, "对已有项目或创业背景参与者做单独访谈，筛选 Monad 迁移和孵化线索")
+	}
+	if containsAny(text, "community", "社区", "运营", "bd", "kol", "ambassador") {
+		hints = append(hints, "让社区/运营型参与者承接活动复盘、内容传播和本地社群触达")
+	}
+	if containsAny(text, "monad") {
+		hints = append(hints, "优先跟进 Monad 经验明确的人，邀请参与生态任务、测试网或开发者小组")
+	}
+	return uniqueStrings(hints)
+}
+
+func missingEventDataHints(total int, signals eventAnalysisSignals) []string {
+	hints := []string{}
+	if total == 0 {
+		return hints
+	}
+	if signals.GithubCount*100/total < 60 {
+		hints = append(hints, "GitHub 覆盖不足，影响开发能力判断")
+	}
+	if signals.GithubStatsCount*100/total < 40 {
+		hints = append(hints, "GitHub 统计缺失较多，建议补跑抓取任务")
+	}
+	if signals.Web3InsightCount*100/total < 30 {
+		hints = append(hints, "Web3Insight 覆盖不足，生态贡献和 profile 信号需要补跑同步")
+	}
+	if signals.IntroCount*100/total < 50 {
+		hints = append(hints, "个人简介不足，难以判断经验背景")
+	}
+	if signals.MonadExperienceCount*100/total < 50 {
+		hints = append(hints, "Monad 经验字段不足，生态关联度需要补问")
+	}
+	if signals.ProjectCount*100/total < 40 {
+		hints = append(hints, "已有项目字段偏少，后续孵化线索不完整")
+	}
+	if signals.UserExtraCount == 0 && signals.RecordExtraCount == 0 {
+		hints = append(hints, "导入表单补充字段为空，建议保留技能栈、城市、公司、项目阶段等原始列")
+	}
+	return hints
+}
+
+func containsAny(text string, keywords ...string) bool {
+	for _, kw := range keywords {
+		if strings.Contains(text, strings.ToLower(kw)) {
+			return true
+		}
+	}
+	return false
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]bool)
+	out := []string{}
+	for _, v := range values {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
+}
+
+func sortedMapKeys(m map[string]bool, limit int) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	if limit > 0 && len(keys) > limit {
+		keys = keys[:limit]
+	}
+	return keys
+}
+
+func truncateText(s string, limit int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	runes := []rune(s)
+	if len(runes) <= limit {
+		return s
+	}
+	return string(runes[:limit]) + "..."
 }

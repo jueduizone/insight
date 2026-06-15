@@ -6,21 +6,63 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
-const arkURL   = "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
-const arkToken = "1d3727fc-1df5-43d1-93ee-2ea2dd4e88c3"
+const defaultAIBaseURL = "https://aiapi.muskpay.top/v1"
+const defaultAIModel = "gpt-5.5"
+const defaultAITimeout = 180 * time.Second
 
-// 字段映射用 GLM（轻量快）
-const modelGLM = "glm-4.7"
+type aiResponse struct {
+	Choices []struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices"`
+}
 
-// 活动分析报告用 Kimi（长文生成）
-const modelKimi = "kimi-k2.5"
+func aiConfig() (baseURL, apiKey, model string) {
+	baseURL = strings.TrimRight(viper.GetString("ai.base_url"), "/")
+	if baseURL == "" {
+		baseURL = strings.TrimRight(os.Getenv("AI_BASE_URL"), "/")
+	}
+	if baseURL == "" {
+		baseURL = defaultAIBaseURL
+	}
 
-// callArk is the internal helper to call the Volcengine Ark Coding Plan API (OpenAI-compatible).
-// Retries up to 2 times on timeout/network error.
-func callArk(model string, maxTokens int, temperature float64, systemPrompt, userPrompt string) (string, error) {
+	apiKey = viper.GetString("ai.api_key")
+	if strings.HasPrefix(apiKey, "${") && strings.HasSuffix(apiKey, "}") {
+		apiKey = os.Getenv(strings.TrimSuffix(strings.TrimPrefix(apiKey, "${"), "}"))
+	}
+	if apiKey == "" {
+		apiKey = os.Getenv("AI_API_KEY")
+	}
+	if apiKey == "" {
+		apiKey = os.Getenv("MUSKPAY_API_KEY")
+	}
+
+	model = viper.GetString("ai.model")
+	if model == "" {
+		model = os.Getenv("AI_MODEL")
+	}
+	if model == "" {
+		model = defaultAIModel
+	}
+	return baseURL, apiKey, model
+}
+
+// callAI calls the configured OpenAI-compatible chat completions API.
+// Defaults mirror the current Hermes model provider: MuskPay gpt-5.5.
+func callAI(maxTokens int, temperature float64, systemPrompt, userPrompt string) (string, error) {
+	baseURL, apiKey, model := aiConfig()
+	if apiKey == "" {
+		return "", fmt.Errorf("AI API key is not configured")
+	}
+
 	body, err := json.Marshal(map[string]interface{}{
 		"model": model,
 		"messages": []map[string]string{
@@ -36,25 +78,25 @@ func callArk(model string, maxTokens int, temperature float64, systemPrompt, use
 
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		req, err := http.NewRequest("POST", arkURL, bytes.NewReader(body))
+		req, err := http.NewRequest("POST", baseURL+"/chat/completions", bytes.NewReader(body))
 		if err != nil {
 			return "", err
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+arkToken)
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 
-		client := &http.Client{Timeout: 90 * time.Second}
+		client := &http.Client{Timeout: defaultAITimeout}
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
 			time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
 			continue
 		}
-		defer resp.Body.Close()
 
-		respBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			lastErr = err
+		respBytes, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
 			continue
 		}
 
@@ -62,41 +104,36 @@ func callArk(model string, maxTokens int, temperature float64, systemPrompt, use
 			return "", fmt.Errorf("AI API error %d: %s", resp.StatusCode, string(respBytes))
 		}
 
-		var result map[string]interface{}
+		var result aiResponse
 		if err := json.Unmarshal(respBytes, &result); err != nil {
 			return "", err
 		}
-
-		choices, ok := result["choices"].([]interface{})
-		if !ok || len(choices) == 0 {
+		if len(result.Choices) == 0 {
 			return "", fmt.Errorf("no choices in response")
 		}
-		choice, ok := choices[0].(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("invalid choice format")
+		content := result.Choices[0].Message.Content
+		if content == "" {
+			var raw map[string]interface{}
+			if err := json.Unmarshal(respBytes, &raw); err == nil {
+				if len(raw) > 0 {
+					return "", fmt.Errorf("empty content in response: %v", raw)
+				}
+			}
+			return "", fmt.Errorf("empty content in response")
 		}
-		msg, ok := choice["message"].(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("invalid message format")
-		}
-		content, ok := msg["content"].(string)
-		if !ok {
-			return "", fmt.Errorf("invalid content format")
-		}
-
 		return content, nil
 	}
 	return "", fmt.Errorf("AI request failed after 3 attempts: %v", lastErr)
 }
 
-// CallKimi uses GLM for fast, lightweight tasks (field mapping, extraction).
+// CallKimi keeps the legacy function name for field mapping/extraction callers.
 func CallKimi(systemPrompt, userPrompt string) (string, error) {
-	return callArk(modelGLM, 500, 0.3, systemPrompt, userPrompt)
+	return callAI(500, 0.3, systemPrompt, userPrompt)
 }
 
-// GenerateProfile uses GLM to generate a structured developer profile.
+// GenerateProfile generates a structured developer profile.
 func GenerateProfile(prompt string) (string, error) {
-	return callArk(modelGLM, 1200, 0.7,
+	return callAI(1200, 0.7,
 		`你是 Monad 生态开发者运营助手，根据提供的开发者信息生成结构化画像。
 严格按以下 Markdown 格式输出，不要添加额外标题或说明，无法判断的项填"未知"：
 
@@ -121,7 +158,6 @@ func GenerateProfile(prompt string) (string, error) {
 	)
 }
 
-// AnalyzeEvent uses GLM for long-form activity analysis reports.
 func AnalyzeEvent(systemPrompt, userPrompt string) (string, error) {
-	return callArk(modelGLM, 600, 0.3, systemPrompt, userPrompt)
+	return callAI(600, 0.3, systemPrompt, userPrompt)
 }

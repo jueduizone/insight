@@ -18,7 +18,6 @@ import {
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Column, Line } from "@ant-design/plots";
 import { UserOutlined, GithubOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
@@ -187,27 +186,6 @@ export default function Home() {
     }
   }
 
-  // Activity score distribution buckets (client-side fallback)
-  const scoreBuckets: ScoreBucket[] = useMemo(() => {
-    if (weeklyReport?.activity_distribution?.length) {
-      return weeklyReport.activity_distribution;
-    }
-    const buckets = [
-      { range: "0", count: 0 },
-      { range: "1-30", count: 0 },
-      { range: "31-60", count: 0 },
-      { range: "61-100", count: 0 },
-    ];
-    users.forEach((u) => {
-      const s = u.activity_score || 0;
-      if (s === 0) buckets[0].count++;
-      else if (s <= 30) buckets[1].count++;
-      else if (s <= 60) buckets[2].count++;
-      else buckets[3].count++;
-    });
-    return buckets;
-  }, [users, weeklyReport]);
-
   // Warning list: activity_score = 0, joined > 30 days ago
   const warningDevs = useMemo(() => {
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
@@ -229,27 +207,6 @@ export default function Home() {
         .slice(0, 10),
     [users]
   );
-
-  const columnConfig = {
-    data: scoreBuckets,
-    xField: "range",
-    yField: "count",
-    color: "var(--accent-purple)",
-    label: {
-      position: "top" as const,
-    },
-    xAxis: { title: { text: "活跃度分段" } },
-    yAxis: { title: { text: "人数" } },
-  };
-
-  const lineConfig = {
-    data: weeklyReport?.new_users_trend ?? [],
-    xField: "date",
-    yField: "count",
-    color: "var(--accent-purple)",
-    point: { size: 3, shape: "circle" },
-    smooth: true,
-  };
 
   const statCards = [
     {
