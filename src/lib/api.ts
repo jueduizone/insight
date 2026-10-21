@@ -1,4 +1,6 @@
-export const API_BASE = "https://insight.gmonad.cc";
+import Router from "next/router";
+
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 
 export interface ApiResponse<T = unknown> {
   code: number;
@@ -42,7 +44,7 @@ export async function apiFetch<T = unknown>(
     if (typeof window !== "undefined") {
       localStorage.removeItem("insight_token");
       localStorage.removeItem("insight_user");
-      window.location.href = "/login";
+      void Router.replace("/login");
     }
     throw new Error("Unauthorized");
   }
@@ -50,3 +52,4 @@ export async function apiFetch<T = unknown>(
   const data = await response.json();
   return data as ApiResponse<T>;
 }
+

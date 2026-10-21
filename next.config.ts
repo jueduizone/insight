@@ -2,9 +2,6 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  typescript: {
-    ignoreBuildErrors: true, // 忽略 TypeScript 检查
-  },
   reactStrictMode: true,
   transpilePackages: [
     '@ant-design',

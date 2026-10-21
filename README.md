@@ -1,40 +1,135 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# Monad DevInsight
 
-## Getting Started
+This app is now a single Next.js project. The former Go/Gin backend has been
+ported to Next API routes under `/api/v1/*`; the frontend calls the same-origin
+API through `/api`.
 
-First, run the development server:
+## Local Development
 
 ```bash
+nvm install
+nvm use
+npm ci
+cp env.example .env.local
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+Node 24.22.1 or a later patched 24.x release is required. `.nvmrc` pins the
+verified baseline; `engines.node` selects the patched 24.x branch on Vercel.
+Development, production builds, startup, and database migration check this
+requirement before proceeding.
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Required:
 
-## Learn More
+- `DATABASE_URL`: Neon direct Postgres URL for runtime requests.
+- `DIRECT_DATABASE_URL`: Neon direct Postgres URL for migrations.
+- `JWT_SECRET`: JWT signing secret.
+- `CRON_SECRET`: required bearer token for cron endpoints and private health details.
 
-To learn more about Next.js, take a look at the following resources:
+Optional integrations:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+- `AI_BASE_URL`
+- `AI_API_KEY`
+- `AI_MODEL`
+- `WEB3INSIGHT_BASE_URL`
+- `WEB3INSIGHT_API_KEY`
+- `GITHUB_PAT`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For the shared Neon database, the app sets `search_path=insight,public` in code.
+Use the direct Neon host, not the `-pooler` host, unless search path behavior has
+been re-tested.
 
-## Deploy on Vercel
+Remote database connections always verify TLS certificates and hostnames.
+The shared runtime/migration connection configuration normalizes URL TLS
+options so a connection string cannot silently disable verification or
+override `search_path`. Only exact loopback hosts allow non-TLS local
+development. Use a trusted public CA for the managed database endpoint.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+The Next catch-all API route is `src/pages/api/[...path].ts`.
+
+Main routes:
+
+- `POST /api/v1/login`
+- `/api/v1/users`
+- `/api/v1/projects`
+- `/api/v1/events`
+- `/api/v1/operation-logs`
+- `/api/v1/stats`
+- `/api/v1/reports/weekly`
+- `/api/v1/reports/generate`
+- `POST /api/v1/suggest-mapping`
+
+Cron routes:
+
+- `/api/cron/project-cleaner`
+- `/api/cron/github`
+- `/api/cron/activity-score`
+- `/api/cron/web3insight`
+- `/api/cron/profiles`
+
+## Deployment
+
+On Vercel/OpenBuild:
+
+1. Configure the environment variables above.
+2. Run `npm run db:migrate` once against the production database.
+3. Deploy with Vercel.
+
+```bash
+npx vercel link
+npx vercel env pull .env.local
+npm run db:migrate
+npx vercel --prod
+```
+
+The repository includes `vercel.json` with cron schedules and API max duration.
+
+### Deployment Health
+
+`GET /api/health` returns an uncached readiness status after checking the actual
+function Node patch level and the database schema. It returns 503 on an
+unpatched runtime or unexpected database schema. Normal public responses do
+not expose runtime versions, database names, or errors.
+
+An operator can send `Authorization: Bearer <CRON_SECRET>` to the same endpoint
+to inspect the actual function Node/OpenSSL/Brotli versions and schema name.
+Keep this token private. API cold starts also write a `[runtime-security]`
+record to server logs, with version information only.
+
+Deployment procedure: deploy a preview using production environment settings,
+verify health and authenticated API reads, then promote that tested deployment.
+Vercel's `24.x` project setting alone is not evidence of the patch version.
+
+## Shared Neon Schema
+
+The restored Insight data lives under the `insight` schema in the shared Neon
+database:
+
+- `insight.users`
+- `insight.projects`
+- `insight.activity_events`
+- `insight.activity_records`
+- `insight.operation_logs`
+
+Cross-system links live in `shared.user_links`. Runtime SQL intentionally uses
+unqualified table names; the Postgres connection sets:
+
+```sql
+search_path = insight, public
+```
+
+So `SELECT * FROM users` resolves to `insight.users`.

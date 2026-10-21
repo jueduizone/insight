@@ -232,6 +232,7 @@ export default function DevelopersPage() {
   useEffect(() => {
     fetchUsers();
     fetchEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchUsers(overrideEventId?: number | null, overrideEventStatus?: string) {

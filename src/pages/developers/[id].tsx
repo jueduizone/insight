@@ -192,6 +192,7 @@ export default function DeveloperDetailPage() {
     fetchUser(uid);
     fetchActivity(uid);
     fetchLogs(uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function fetchUser(uid: string) {

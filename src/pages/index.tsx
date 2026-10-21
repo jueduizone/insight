@@ -127,15 +127,12 @@ export default function Home() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [weeklyReport, setWeeklyReport] = useState<WeeklyReportData | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [warningCutoff] = useState(() => Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   // Generate report modal
   const [reportOpen, setReportOpen] = useState(false);
   const [reportContent, setReportContent] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
-
-  useEffect(() => {
-    fetchAll();
-  }, []);
 
   async function fetchAll() {
     setStatsLoading(true);
@@ -166,6 +163,10 @@ export default function Home() {
     }
   }
 
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
   async function handleGenerateReport() {
     setReportLoading(true);
     setReportContent("");
@@ -188,15 +189,14 @@ export default function Home() {
 
   // Warning list: activity_score = 0, joined > 30 days ago
   const warningDevs = useMemo(() => {
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     return users
       .filter(
         (u) =>
           (u.activity_score || 0) === 0 &&
-          new Date(u.CreatedAt ?? u.created_at ?? 0).getTime() < thirtyDaysAgo
+          new Date(u.CreatedAt ?? u.created_at ?? 0).getTime() < warningCutoff
       )
       .slice(0, 5);
-  }, [users]);
+  }, [users, warningCutoff]);
 
   // TOP 10 by activity_score
   const top10 = useMemo(

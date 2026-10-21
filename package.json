@@ -2,30 +2,44 @@
   "name": "insight",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
   "scripts": {
+    "predev": "node scripts/check-runtime.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/check-runtime.mjs",
     "build": "next build",
+    "prestart": "node scripts/check-runtime.mjs",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/migrate-db.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ant-design/charts": "^1.4.3",
     "@ant-design/icons": "^6.1.0",
-    "@ant-design/plots": "^2.6.6",
+    "@types/formidable": "^3.5.1",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.20.0",
     "antd": "^6.1.0",
+    "bcryptjs": "^3.0.3",
+    "csv-parse": "7.0.3",
+    "formidable": "^3.5.4",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.561.0",
-    "next": "16.0.10",
-    "react": "19.2.1",
-    "react-dom": "19.2.1",
-    "react-markdown": "^10.1.0",
-    "recharts": "^3.5.1"
+    "next": "16.4.2",
+    "pg": "^8.21.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
-    "@types/node": "20.19.37",
+    "@types/node": "24.19.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.10",
+    "eslint-config-next": "16.4.2",
     "typescript": "5.9.3"
   }
 }
