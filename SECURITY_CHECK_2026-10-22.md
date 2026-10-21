@@ -3,7 +3,46 @@
 Checked against the WeChat article titled "安全大逃杀：https 证书、PHP、Node.js 三连爆"
 and the Node.js October 2026 security advisory. Date uses Asia/Shanghai.
 
-## Remediation Progress
+## Release Result
+
+Application changes were committed and pushed to `main` as
+`9612ab363cb852161b7bf3a2c846ad906dfda854`. Production promotion is blocked by
+the managed Vercel function runtime, not by the application build.
+
+- Application candidate: `dpl_77f5DPAHKiTUubrhEX9vRqrBdtHi`, state `READY`.
+  Its authenticated health endpoint reports Node `v24.21.0`, OpenSSL `3.5.7`,
+  and Brotli `1.2.0`. The endpoint correctly returns 503 because Node is below
+  the required `24.22.1`. Do not promote this candidate as a security fix.
+- A separate minimal protected function probe using `nodejs22.x`, deployment
+  `dpl_7PJgpfmjMS4Z7Q3jPN2AEFvt2RxE`, reports Node `v22.23.2`, OpenSSL `3.5.7`,
+  and Brotli `1.1.0`. This is also below its fixed baseline `22.23.4`.
+- Vercel supports selecting major versions 24.x and 22.x, while it manages
+  minor/patch rollouts. A successful build with patched Node does not establish
+  the live function runtime version. Both observed runtime branches currently
+  fail the applicable security baseline.
+- The production target remains `dpl_4ptHvpRCiKQbDrexe5dSgpvnCDj6`.
+  `insight.gmonad.cc` and `insight-seven-omega.vercel.app` were not promoted.
+  The CLI-generated `insight-open-build.vercel.app` alias was restored to the
+  existing production deployment after the diagnostic probe.
+- The deployment protection setting remains `all_except_custom_domains`.
+  Vercel CLI generated an automation bypass credential for protected candidate
+  verification. Its value was not committed or printed.
+- Clean install, nine automated security/API regression tests, ESLint,
+  standalone TypeScript checking, and production build all passed.
+- A local production server on patched Node `24.22.1` passed live read-only
+  tests against production Neon: public/private health, wrong health token,
+  method rejection, unauthenticated/invalid JWT rejection, unauthorized Cron
+  rejection, and authenticated stats/users/events/event records/operation logs/
+  projects/weekly report reads. Nested responses were checked for password-hash
+  exposure. The local server was stopped after testing. No production rows
+  were changed by these tests.
+
+Next release action: obtain a Vercel function runtime rollout at or above the
+fixed baseline, redeploy the application, then verify the authenticated live
+health endpoint before promoting the tested deployment. Keep the runtime guard
+enabled. The former Linux host remains outside the scope of this remediation.
+
+## Remediation Changes
 
 The findings below preserve the initial read-only audit. The user subsequently
 authorized fixes, tests, commit, and deployment.

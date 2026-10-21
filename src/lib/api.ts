@@ -52,4 +52,3 @@ export async function apiFetch<T = unknown>(
   const data = await response.json();
   return data as ApiResponse<T>;
 }
-

@@ -18,7 +18,8 @@ npm run dev
 Open http://localhost:3000.
 
 Node 24.22.1 or a later patched 24.x release is required. `.nvmrc` pins the
-verified baseline; `engines.node` selects the patched 24.x branch on Vercel.
+verified baseline; `engines.node` selects the 24.x branch on Vercel. Vercel
+controls the actual function patch level; the engine range cannot pin it.
 Development, production builds, startup, and database migration check this
 requirement before proceeding.
 
