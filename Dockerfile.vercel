@@ -1,0 +1,25 @@
+FROM node:24.22.1-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205 AS base
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+
+FROM base AS dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --include=dev --no-audit --no-fund --registry=https://registry.npmjs.org
+
+FROM base AS builder
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+FROM base AS runner
+ENV NODE_ENV=production
+ENV PORT=80
+ENV HOSTNAME=0.0.0.0
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder /app/scripts/check-runtime.mjs ./scripts/check-runtime.mjs
+COPY --from=builder /app/src/server/runtime-security.mjs ./src/server/runtime-security.mjs
+USER node
+EXPOSE 80
+CMD ["sh", "-c", "node scripts/check-runtime.mjs && exec node server.js"]

@@ -1,9 +1,20 @@
 {
-  "functions": {
-    "src/pages/api/[...path].ts": {
-      "maxDuration": 300
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": ".",
+      "runtime": "container",
+      "entrypoint": "Dockerfile.vercel",
+      "functions": {
+        "Dockerfile.vercel": {
+          "maxDuration": 300
+        }
+      }
     }
   },
+  "rewrites": [
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ],
   "crons": [
     {
       "path": "/api/cron/project-cleaner",

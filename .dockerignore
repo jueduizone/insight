@@ -1,0 +1,12 @@
+.git
+.vercel
+.next
+node_modules
+.env*
+.keyrail*
+*.pem
+*.log
+*.tsbuildinfo
+.DS_Store
+config.yaml
+insight

@@ -5,6 +5,31 @@ and the Node.js October 2026 security advisory. Date uses Asia/Shanghai.
 
 ## Release Result
 
+### Follow-Up Resolution
+
+Managed Node function redeployment still reported `24.21.0`. A startup-wrapper
+probe was not effective. The application now uses Vercel's documented container
+runtime as one service, keeping the single Next project and API routes.
+`Dockerfile.vercel` pins the official Node `24.22.1-bookworm-slim` image digest
+`sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205`.
+The non-root standalone image keeps the runtime guard enabled and excludes
+secrets from the build context.
+
+The first container candidate `dpl_9CWEeuevqRjCZS1eksHGg9avz52j` passed all 37
+read-only live checks: actual Node `v24.22.1`, OpenSSL `3.5.9`, Brotli `1.2.0`,
+verified Neon TLS and schema, unchanged data counts, access controls, seven
+authenticated API reads, seven pages, and all login client JavaScript assets.
+`scripts/verify-deployment.mjs` makes these checks repeatable without logging
+credentials or issuing database writes. Eleven automated tests and ESLint pass;
+the standalone production build passes. Docker is not installed locally, so
+the image was built and executed on Vercel, with live checks against that image.
+
+The earlier blocked-release observations below remain as historical evidence.
+Final committed deployment and promotion are verified separately after the
+container change is pushed.
+
+### Initial Blocked Release
+
 Application changes were committed and pushed to `main` as
 `9612ab363cb852161b7bf3a2c846ad906dfda854`. Production promotion is blocked by
 the managed Vercel function runtime, not by the application build.

@@ -84,20 +84,31 @@ Cron routes:
 
 ## Deployment
 
-On Vercel/OpenBuild:
+On Vercel/OpenBuild, the app uses one container service running the same Next
+project and its API routes. `Dockerfile.vercel` pins the official Node 24.22.1
+image by digest, so the function runtime does not depend on the managed Node
+patch rollout. The final image uses Next standalone output and a non-root user.
+`.dockerignore` excludes local secrets, legacy Go files, and generated artifacts.
 
 1. Configure the environment variables above.
-2. Run `npm run db:migrate` once against the production database.
-3. Deploy with Vercel.
+2. For a new database only, review and apply `npm run db:migrate`. Do not run
+   migrations on every release of the already restored shared Neon database.
+3. Deploy a candidate, verify it, then promote the exact tested deployment.
 
 ```bash
 npx vercel link
 npx vercel env pull .env.local
-npm run db:migrate
-npx vercel --prod
+npx --registry=https://registry.npmjs.org vercel@65.0.0 deploy --prod --skip-domain --yes
+# With DATABASE_URL, JWT_SECRET, CRON_SECRET and optional
+# PROTECTION_BYPASS_SECRET available securely in the process environment:
+node scripts/verify-deployment.mjs https://CANDIDATE.vercel.app
+npx --registry=https://registry.npmjs.org vercel@65.0.0 promote https://CANDIDATE.vercel.app --yes
 ```
 
 The repository includes `vercel.json` with cron schedules and API max duration.
+Update the Docker image tag and digest together when upgrading Node, then run
+the full tests and authenticated live readiness verification before promotion.
+Vercel builds the image remotely; local container tests require Docker.
 
 ### Deployment Health
 
