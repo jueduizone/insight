@@ -5,6 +5,39 @@ and the Node.js October 2026 security advisory. Date uses Asia/Shanghai.
 
 ## Release Result
 
+### Production Verified
+
+The runtime blocker is resolved and the tested container was promoted to
+OpenBuild production on October 22, 2026 (Asia/Shanghai).
+
+- Deployed application commit: `467d9a7394daec8f4c562c625d21d6e94a67c497`.
+- Production deployment: `dpl_CGbapzUq2e7PAiEsQ94mg21w8NgM`, state `READY`.
+- Immutable URL: `https://insight-ohln9ffdj-open-build.vercel.app`.
+- `insight.gmonad.cc` and `insight-seven-omega.vercel.app` both target this
+  deployment and each passed all 38 read-only release checks without a Vercel
+  protection bypass. The protected `insight-open-build.vercel.app` alias targets
+  the same deployment and passed the same checks with temporary operator access.
+- Actual production runtime: Node `v24.22.1`, OpenSSL `3.5.9`, Brotli `1.2.0`.
+  Authenticated health reports `patched=true`, schema `insight`; public health
+  returns only `{"status":"ok"}`. The version guard remains enabled.
+- Neon TLS certificate verification succeeded. Data counts remain 3527 users,
+  14 events, and 4120 activity records. Checks issued no database writes.
+- All five Cron definitions are enabled and bound to the new deployment.
+  Their scheduled business jobs were not manually triggered during verification.
+- The production login page rendered in the browser; empty form submission
+  correctly displayed required-field validation. Authenticated API reads used
+  a short-lived operator JWT; no password reset or interactive account login
+  was performed during this release verification.
+- The temporary deployment-protection bypass credential was revoked after
+  verification. Existing project protection remains `all_except_custom_domains`.
+- Local tests: 11 passed; ESLint, TypeScript checking, and production build
+  passed. Production dependency audit reports zero vulnerabilities. The five
+  development-only ESLint-chain advisories described below remain unresolved.
+
+This report's final evidence update changes documentation only; the live
+application code is the deployed commit above. The former Linux host remains
+outside this work's scope.
+
 ### Follow-Up Resolution
 
 Managed Node function redeployment still reported `24.21.0`. A startup-wrapper
@@ -25,8 +58,7 @@ the standalone production build passes. Docker is not installed locally, so
 the image was built and executed on Vercel, with live checks against that image.
 
 The earlier blocked-release observations below remain as historical evidence.
-Final committed deployment and promotion are verified separately after the
-container change is pushed.
+Final committed deployment and promotion succeeded as recorded above.
 
 ### Initial Blocked Release
 
@@ -62,10 +94,10 @@ the managed Vercel function runtime, not by the application build.
   exposure. The local server was stopped after testing. No production rows
   were changed by these tests.
 
-Next release action: obtain a Vercel function runtime rollout at or above the
+At that stage, the next release action was to obtain a function runtime at or above the
 fixed baseline, redeploy the application, then verify the authenticated live
-health endpoint before promoting the tested deployment. Keep the runtime guard
-enabled. The former Linux host remains outside the scope of this remediation.
+health endpoint before promotion. The container follow-up above completed this
+action while keeping the runtime guard enabled.
 
 ## Remediation Changes
 
